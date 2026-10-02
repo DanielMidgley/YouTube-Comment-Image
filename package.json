@@ -1,0 +1,20 @@
+{
+  "name": "youtube-comment-image",
+  "version": "1.0.0",
+  "description": "Render a YouTube live-chat comment from any name and text, and export it as a PNG that matches a real screenshot.",
+  "private": true,
+  "license": "MIT",
+  "author": "Daniel Midgley",
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node scripts/electron.js .",
+    "test": "node --test \"test/unit/**/*.test.js\"",
+    "test:visual": "node scripts/electron.js test/visual/golden.js"
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "pixelmatch": "^7.2.0",
+    "pngjs": "^7.0.0"
+  }
+}

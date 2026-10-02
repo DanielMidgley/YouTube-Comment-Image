@@ -1,1 +1,4 @@
 /yt_example_page
+node_modules/
+dist/
+test/visual/out/

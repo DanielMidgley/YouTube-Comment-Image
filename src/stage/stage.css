@@ -1,0 +1,50 @@
+/* Layout of the capture stage only (not YouTube's CSS). YouTube's container chain is kept for the styles it
+   inherits and for the chat background painted by yt-live-chat-renderer, but it is laid out as plain blocks
+   that shrink to one row of a fixed width at the top-left corner. The chat's scrollbar is left out (the row
+   width already excludes it), so any extra export margin is plain chat background. */
+html, body {
+  margin: 0;
+  overflow: hidden;
+}
+
+/* At fractional scales the capture is snapped outward to whole device pixels; the sliver past the chat box
+   must be chat background, as it is on YouTube (the scrollbar track there is transparent over it). */
+html {
+  background-color: var(--yt-live-chat-background-color);
+}
+
+yt-live-chat-app,
+yt-live-chat-app #contents,
+tp-yt-iron-pages,
+#chat-messages,
+#chat,
+#item-list,
+yt-live-chat-item-list-renderer,
+#item-scroller,
+#item-offset,
+#items {
+  display: block;
+  position: static;
+}
+
+yt-live-chat-renderer {
+  /* Shrink-wrap the row so this box (which paints the chat background) is exactly the capture area. */
+  display: inline-block;
+  vertical-align: top;
+}
+
+#items {
+  width: var(--stage-row-width, 385px);
+  padding: var(--stage-margin, 0px);
+}
+
+/* Shown only if an emoji image cannot be downloaded (offline): the emoji as text in the same 24px box. */
+.emoji-fallback {
+  display: inline-block;
+  width: var(--yt-live-chat-emoji-size, 24px);
+  height: var(--yt-live-chat-emoji-size, 24px);
+  margin: -1px 2px 1px;
+  vertical-align: middle;
+  font: 20px/24px 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+  text-align: center;
+}

@@ -1,0 +1,452 @@
+/* Editor UI: a compact dark creator tool. The preview area shows the stage at 1 CSS px : 1 CSS px on a
+   neutral checkerboard that is distinct from both chat backgrounds (#0f0f0f and #fff). */
+:root {
+  --app-bg: #15171b; /* also the window background in electron/main.js */
+  --panel: #1b1e23;
+  --field: #111317;
+  --field-hover: #16191e;
+  --border: #2d3139;
+  --border-strong: #3c424c;
+  --text: #e8eaed;
+  --muted: #9aa0a6;
+  --accent: #8ab4f8;
+  --primary: #2f6fde;
+  --primary-hover: #3b7cf0;
+  --danger: #f28b82;
+  --ok: #81c995;
+  --checker-a: #2b2e34;
+  --checker-b: #33373e;
+  --radius: 6px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: var(--app-bg);
+  color: var(--text);
+  font: 13px/1.4 Roboto, Arial, sans-serif;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+[hidden] { display: none !important; }
+
+.app {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  height: 100vh;
+}
+
+/* ---- Form column ---------------------------------------------------------------------------------- */
+
+.controls {
+  overflow-y: auto;
+  padding: 16px 18px 28px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.brand p {
+  margin: 2px 0 0;
+  color: var(--muted);
+}
+
+.group {
+  padding: 14px 0 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.group:last-child { border-bottom: 0; }
+
+.group h2 {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.field {
+  display: block;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0 0 4px;
+  padding: 0;
+  font-weight: 500;
+}
+
+.subfield { margin-top: 8px; }
+
+.hint {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.unit { color: var(--muted); }
+
+input[type="text"],
+input[type="number"],
+textarea,
+select {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--field);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+}
+
+input[type="text"]:hover,
+input[type="number"]:hover,
+textarea:hover,
+select:hover { border-color: var(--border-strong); }
+
+input[type="text"]:focus-visible,
+input[type="number"]:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+  border-color: transparent;
+}
+
+textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+input.short { width: 84px; }
+#timestamp { width: 96px; }
+
+.counter {
+  color: var(--muted);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.counter.over { color: var(--danger); }
+
+/* Checkbox rows */
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  cursor: pointer;
+}
+
+.inline .check { margin: 0; }
+
+.check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+/* Segmented controls (radio groups) */
+.segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 2px;
+  background: var(--field);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.segmented label { position: relative; }
+
+.segmented input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.segmented span {
+  display: block;
+  padding: 5px 6px;
+  border-radius: 4px;
+  color: var(--muted);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.segmented input:hover + span { color: var(--text); }
+
+.segmented input:checked + span {
+  background: var(--border-strong);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.segmented input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Avatar colour swatches */
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.swatch {
+  position: relative;
+  width: 26px;
+  height: 26px;
+}
+
+.swatch input {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: 50%;
+  background: var(--swatch);
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.swatch input:checked {
+  box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--text);
+}
+
+.swatch input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.swatch .auto-mark {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+/* Upload rows */
+.upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.upload .hint { flex-basis: 100%; margin-top: 0; }
+
+.thumb {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  background: var(--field);
+  border: 1px solid var(--border);
+}
+
+.thumb.round { border-radius: 50%; }
+
+/* Buttons */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 5px 12px;
+  background: var(--field);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.button:hover { background: var(--field-hover); border-color: #4a515c; }
+.button:disabled { opacity: 0.55; cursor: default; }
+
+.button.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--accent);
+}
+
+.button.ghost:hover { background: rgba(138, 180, 248, 0.08); }
+
+.button.small { min-height: 26px; padding: 3px 8px; }
+
+.button.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.button.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+
+.presets {
+  display: flex;
+  gap: 4px;
+}
+
+.presets .button[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.status {
+  min-height: 1.4em;
+  margin: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.status.ok { color: var(--ok); }
+.status.error { color: var(--danger); }
+
+/* ---- Preview column -------------------------------------------------------------------------------- */
+
+.preview {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.preview-scroll {
+  position: relative;
+  display: flex;
+  overflow: auto;
+  padding: 40px;
+  background-color: var(--checker-a);
+  background-image: conic-gradient(var(--checker-b) 25%, transparent 0 50%, var(--checker-b) 0 75%, transparent 0);
+  background-size: 16px 16px;
+}
+
+/* margin:auto centres the stage while still letting a large preview scroll from its top-left corner. */
+.preview-stage {
+  position: relative;
+  flex: none;
+  margin: auto;
+}
+
+#preview {
+  display: block;
+  width: 400px;
+  height: 32px;
+  border: 0;
+  /* Purely a picture: drops and clicks go to the editor. */
+  pointer-events: none;
+}
+
+.export-outline {
+  position: absolute;
+  pointer-events: none;
+  /* An outline is drawn outside the box, so it never covers exported pixels. */
+  outline: 1px dashed rgba(138, 180, 248, 0.9);
+}
+
+.preview-error {
+  position: absolute;
+  inset: 16px 16px auto;
+  padding: 10px 12px;
+  background: #2a1716;
+  color: var(--danger);
+  border: 1px solid #5c2b29;
+  border-radius: var(--radius);
+}
+
+/* Always-visible export bar: size readout and status on the left, scale and actions on the right. */
+.export-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+}
+
+.export-info {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+  min-width: 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.export-info .status { flex-basis: 100%; }
+
+.scale-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.scale-field select { width: auto; }
+
+.export-bar .button { min-height: 34px; padding: 6px 16px; }
+
+#export-size { color: var(--text); }
+.note:empty { display: none; }
+.note.warn { color: #fdd663; }
+
+/* ---- Drag and drop -------------------------------------------------------------------------------- */
+
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: rgba(12, 14, 18, 0.72);
+  pointer-events: none;
+}
+
+.drop-overlay div {
+  padding: 28px 36px;
+  border: 2px dashed var(--accent);
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 500;
+}

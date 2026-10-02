@@ -1,0 +1,22 @@
+<!doctype html>
+<!-- Script-free page for captureRegion() smoke tests: a box at a fractional position, one far below the
+     initial viewport (the window must grow), and a tall body so the "page is scrolled" check can be hit. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'">
+<title>Region capture test page</title>
+<link rel="stylesheet" href="../../src/styles/roboto.css">
+<style>
+  html, body { margin: 0; background: #202124; color: #e8eaed; font: 13px/16px Roboto, Arial, sans-serif; }
+  body { height: 3000px; }
+  .target { position: absolute; padding: 3px 5px; background: #3c4043; border-left: 1px solid #8ab4f8; white-space: nowrap; }
+  #target { left: 13.5px; top: 7.25px; }
+  #far { left: 40px; top: 1500px; }
+</style>
+</head>
+<body>
+<div class="target" id="target">Static region at 13.5, 7.25</div>
+<div class="target" id="far">Far below the initial viewport</div>
+</body>
+</html>

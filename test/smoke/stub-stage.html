@@ -1,0 +1,29 @@
+<!doctype html>
+<!-- Stand-in for src/stage/stage.html implementing the same contract (window.stage.render(props) → box),
+     so electron/capture.js can be exercised independently of the real stage. Geometry is YouTube-like
+     (24 px avatar, 4 px / 24 px padding → a single-line row is 32 CSS px tall). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'">
+<title>Stub stage</title>
+<link rel="stylesheet" href="../../src/styles/roboto.css">
+<style>
+  html { font-size: 10px; font-family: Roboto, Arial, sans-serif; }
+  html, body { margin: 0; overflow: hidden; }
+  html[data-theme="dark"] { --bg: #0f0f0f; --text: #fff; --author: rgba(255, 255, 255, 0.7); --time: rgba(255, 255, 255, 0.7); }
+  html[data-theme="light"] { --bg: #fff; --text: #0f0f0f; --author: rgba(0, 0, 0, 0.6); --time: rgba(0, 0, 0, 0.6); }
+  body { background: var(--bg); }
+  #chat { position: absolute; left: 0; top: 0; background: var(--bg); }
+  .row { box-sizing: border-box; display: flex; align-items: flex-start; padding: 4px 24px; font-size: 13px; line-height: 16px; color: var(--text); }
+  .avatar { flex: none; width: 24px; height: 24px; border-radius: 50%; margin-right: 16px; }
+  .content { align-self: center; min-width: 0; overflow-wrap: anywhere; }
+  .time { font-size: 11px; color: var(--time); margin-right: 8px; }
+  .name { font-weight: 500; color: var(--author); margin-right: 8px; }
+</style>
+<script type="module" src="stub-stage.js"></script>
+</head>
+<body>
+<div id="chat"><div class="row"><img class="avatar" alt=""><div class="content"><span class="time"></span><span class="name"></span><span class="message"></span></div></div></div>
+</body>
+</html>

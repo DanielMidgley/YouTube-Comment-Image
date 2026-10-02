@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<!-- Replica of YouTube's live chat iframe document: same <html>/<body> attributes and the same element chain
+     down to #items, so YouTube's (curated) CSS cascades onto the single row exactly as it does on YouTube. -->
+<html style="font-size: 10px;font-family: Roboto, Arial, sans-serif;" darker-dark-theme="" darker-dark-theme-deprecate="" dark="" color-version="v2_0" watch-color-update="">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://fonts.gstatic.com; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'">
+<title>Chat comment stage</title>
+<link rel="stylesheet" href="../styles/roboto.css">
+<link rel="stylesheet" href="../styles/youtube-chat.css">
+<link rel="stylesheet" href="stage.css">
+<script type="module" src="stage.js"></script>
+</head>
+<body dir="ltr" rounded-container=""><yt-live-chat-app dark=""><div id="contents" class="style-scope yt-live-chat-app"><yt-live-chat-renderer class="style-scope yt-live-chat-app" hide-timestamps="" has-ticker="" enable-banner-update=""><tp-yt-iron-pages id="content-pages" class="style-scope yt-live-chat-renderer"><div id="chat-messages" class="style-scope yt-live-chat-renderer iron-selected"><div id="contents" class="style-scope yt-live-chat-renderer"><div id="chat" class="style-scope yt-live-chat-renderer"><div id="item-list" class="style-scope yt-live-chat-renderer"><yt-live-chat-item-list-renderer class="style-scope yt-live-chat-renderer" allow-scroll="" enable-banner-update="" id="live-chat-item-list-panel"><div id="contents" class="style-scope yt-live-chat-item-list-renderer"><div id="item-scroller" class="style-scope yt-live-chat-item-list-renderer"><div id="item-offset" class="style-scope yt-live-chat-item-list-renderer"><div id="items" class="style-scope yt-live-chat-item-list-renderer" style="transform: translateY(0px);"></div></div></div></div></yt-live-chat-item-list-renderer></div></div></div></div></tp-yt-iron-pages></yt-live-chat-renderer></div></yt-live-chat-app></body>
+</html>

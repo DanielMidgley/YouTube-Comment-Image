@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://fonts.gstatic.com; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; frame-src 'self'; connect-src 'self'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YouTube Chat Comment</title>
+<link rel="stylesheet" href="../styles/roboto.css">
+<link rel="stylesheet" href="editor.css">
+<script type="module" src="editor.js"></script>
+</head>
+<body>
+<div class="app">
+  <form class="controls" id="form" autocomplete="off" novalidate>
+    <header class="brand">
+      <h1>Chat comment</h1>
+      <p>Type a comment, check the preview, export a screenshot-exact PNG.</p>
+    </header>
+
+    <section class="group" aria-labelledby="h-author">
+      <h2 id="h-author">Author</h2>
+
+      <label class="field">
+        <span class="label">Name</span>
+        <input id="name" name="name" type="text" maxlength="200" spellcheck="false" placeholder="@handle or display name">
+      </label>
+
+      <fieldset class="field">
+        <legend class="label">Avatar</legend>
+        <div class="segmented">
+          <label><input type="radio" name="avatarMode" value="default"><span>Letter</span></label>
+          <label><input type="radio" name="avatarMode" value="image"><span>Image</span></label>
+        </div>
+
+        <div id="avatar-default" class="subfield">
+          <div class="swatches" id="swatches" role="radiogroup" aria-label="Avatar colour"></div>
+        </div>
+
+        <div id="avatar-image" class="subfield upload" hidden>
+          <img id="avatar-thumb" class="thumb round" alt="" width="40" height="40" hidden>
+          <button type="button" id="avatar-choose" class="button">Choose image…</button>
+          <input id="avatar-file" type="file" accept="image/*" hidden>
+          <button type="button" id="avatar-remove" class="button ghost" hidden>Remove</button>
+          <p class="hint">Square crop from the centre. You can also drop an image anywhere on the window.</p>
+        </div>
+      </fieldset>
+
+      <fieldset class="field">
+        <legend class="label">Role</legend>
+        <div class="segmented four">
+          <label><input type="radio" name="role" value="viewer"><span>Viewer</span></label>
+          <label><input type="radio" name="role" value="member"><span>Member</span></label>
+          <label><input type="radio" name="role" value="moderator"><span>Moderator</span></label>
+          <label><input type="radio" name="role" value="owner"><span>Owner</span></label>
+        </div>
+      </fieldset>
+
+      <label class="check">
+        <input id="verified" name="verified" type="checkbox">
+        <span>Verified</span>
+      </label>
+
+      <div class="field" id="badge-field" hidden>
+        <span class="label" id="badge-label">Member badge</span>
+        <div class="upload">
+          <img id="badge-thumb" class="thumb" alt="" width="32" height="32" hidden>
+          <button type="button" id="badge-choose" class="button" aria-describedby="badge-hint">Choose badge…</button>
+          <input id="badge-file" type="file" accept="image/*" hidden>
+          <button type="button" id="badge-remove" class="button ghost" hidden>Remove</button>
+        </div>
+        <p class="hint" id="badge-hint">Member badges are always the channel's own image. Leave it empty to show no badge.</p>
+      </div>
+    </section>
+
+    <section class="group" aria-labelledby="h-message">
+      <h2 id="h-message">Message</h2>
+      <label class="field">
+        <span class="label">Text <span class="counter" id="counter" aria-live="polite">0/200</span></span>
+        <textarea id="message" name="message" rows="4" spellcheck="true" placeholder="Say something…"></textarea>
+      </label>
+
+      <div class="field">
+        <div class="inline">
+          <label class="check">
+            <input id="timestamp-on" name="timestampOn" type="checkbox">
+            <span>Timestamp</span>
+          </label>
+          <input id="timestamp" name="timestamp" type="text" maxlength="40" aria-label="Timestamp text" class="short">
+          <button type="button" id="timestamp-now" class="button ghost small">Now</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="group" aria-labelledby="h-look">
+      <h2 id="h-look">Appearance</h2>
+      <fieldset class="field">
+        <legend class="label">Theme</legend>
+        <div class="segmented">
+          <label><input type="radio" name="theme" value="dark"><span>Dark</span></label>
+          <label><input type="radio" name="theme" value="light"><span>Light</span></label>
+        </div>
+      </fieldset>
+
+      <div class="field">
+        <label class="label" for="row-width">Comment width</label>
+        <div class="inline">
+          <input id="row-width" name="rowWidth" type="number" min="200" max="1200" step="1" class="short" aria-describedby="row-width-hint">
+          <span class="unit">px</span>
+          <div class="presets" id="width-presets" role="group" aria-label="Width presets"></div>
+        </div>
+        <p class="hint" id="row-width-hint">Width of the message row in CSS pixels.</p>
+      </div>
+
+      <div class="field">
+        <label class="label" for="margin">Margin</label>
+        <div class="inline">
+          <input id="margin" name="margin" type="number" min="0" max="64" step="1" class="short" aria-describedby="margin-hint">
+          <span class="unit">px</span>
+        </div>
+        <p class="hint" id="margin-hint">Extra chat background around the comment.</p>
+      </div>
+    </section>
+  </form>
+
+  <main class="preview" aria-label="Preview">
+    <div class="preview-scroll" id="preview-scroll">
+      <div class="preview-stage" id="preview-stage">
+        <iframe id="preview" src="../stage/stage.html" title="Comment preview" tabindex="-1"></iframe>
+        <div class="export-outline" id="outline" aria-hidden="true" hidden></div>
+      </div>
+      <div class="preview-error" id="preview-error" role="alert" hidden></div>
+    </div>
+    <footer class="export-bar" aria-label="Export">
+      <div class="export-info">
+        <span id="export-size">Rendering…</span>
+        <span id="preview-note" class="note"></span>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </div>
+      <label class="scale-field">
+        <span>Scale</span>
+        <select id="scale" name="scale"></select>
+      </label>
+      <button type="button" id="copy" class="button" aria-keyshortcuts="Control+Shift+C" title="Copy image (Ctrl+Shift+C)">Copy image</button>
+      <button type="button" id="save" class="button primary" aria-keyshortcuts="Control+S" title="Save PNG (Ctrl+S)">Save PNG…</button>
+    </footer>
+  </main>
+</div>
+<div class="drop-overlay" id="drop-overlay" hidden><div>Drop the image to use it as the avatar</div></div>
+</body>
+</html>
