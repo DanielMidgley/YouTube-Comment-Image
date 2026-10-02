@@ -15,6 +15,22 @@ Requires Node.js 22.12 or newer. Always launch through `npm start` (or `node scr
 the launcher removes `ELECTRON_RUN_AS_NODE`, which some tools (e.g. VS Code extensions) set and which
 would otherwise make Electron run as plain Node.
 
+## Build an executable
+
+```sh
+npm run dist
+```
+
+This writes two versions of the app to `dist/`:
+
+- `YouTube-Chat-Comment-1.0.0-portable.exe`: one file you can keep and run anywhere. It unpacks itself
+  each time it starts, so it opens a few seconds slower.
+- `win-unpacked/`: the same app as a folder; `YouTube Chat Comment.exe` inside starts instantly.
+
+The executable isn't code-signed, so if you copy it to another PC, Windows SmartScreen may ask before the
+first run (More info → Run anyway). The version number comes from `package.json` and the icon from
+`build/icon.png` (drawn from `build/icon.svg`).
+
 ## What you can set
 
 - **Name and message**: the name is shown exactly as typed (YouTube shows `@handles`, and some older

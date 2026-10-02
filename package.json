@@ -10,11 +10,49 @@
   "scripts": {
     "start": "node scripts/electron.js .",
     "test": "node --test \"test/unit/**/*.test.js\"",
-    "test:visual": "node scripts/electron.js test/visual/golden.js"
+    "test:visual": "node scripts/electron.js test/visual/golden.js",
+    "dist": "electron-builder --win"
   },
   "devDependencies": {
     "electron": "^44.5.1",
+    "electron-builder": "^26.15.3",
     "pixelmatch": "^7.2.0",
     "pngjs": "^7.0.0"
+  },
+  "build": {
+    "appId": "com.danielmidgley.youtube-comment-image",
+    "productName": "YouTube Chat Comment",
+    "copyright": "Copyright © 2026 Daniel Midgley",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "portable": {
+      "artifactName": "YouTube-Chat-Comment-${version}-portable.exe"
+    },
+    "electronFuses": {
+      "runAsNode": false,
+      "enableCookieEncryption": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true
+    }
   }
 }
