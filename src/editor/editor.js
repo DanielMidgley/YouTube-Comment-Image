@@ -5,13 +5,16 @@ import {
   DEFAULT_AVATAR_COLORS, DEFAULT_AVATAR_COLOR_NAMES, avatarInitial, avatarSizeFor, badgeSizeFor,
   makeDefaultAvatar, pickAvatarColor, prepareAvatar, prepareBadge,
 } from '../comment/avatar.js';
+import { LIMITS, capText } from '../comment/limits.js';
+import { normalizeMessage } from '../comment/render.js';
+import { TYPING, shownAt, splitGraphemes, typingFrames } from '../comment/typing.js';
 
 const STORAGE_KEY = 'ytComment.editor.v1';
 const MESSAGE_LIMIT = 200; // YouTube's chat input counter; shown, not enforced
 const DEFAULT_ROW_WIDTH = 400; // the user's saved theater-mode chat: 415 px chat − 15 px scrollbar
 const WIDTH_PRESETS = [
-  { width: 385, title: 'YouTube default — 402px sidebar' },
-  { width: 400, title: 'Your saved page' },
+  { width: 385, title: "YouTube's standard chat (402 px sidebar)" },
+  { width: 400, title: 'Wide window or theater mode (415 px chat)' },
 ];
 const ROW_WIDTH = { min: 200, max: 1200 };
 const MARGIN = { min: 0, max: 64 };
@@ -19,6 +22,9 @@ const SCALES = [1, 1.25, 1.5, 1.75, 2, 2.5, 3];
 const RENDER_DELAY_MS = 60;
 const PERSIST_DELAY_MS = 250;
 const STAGE_TIMEOUT_MS = 8000;
+// YouTube's live chat formats times with the pattern 'h:mm a', whose space is U+202F (narrow no-break).
+// (Up here: loadState() formats a time while the module is still loading.)
+const NARROW_SPACE = String.fromCharCode(0x202f);
 
 const DEFAULT_STATE = {
   name: '@YourChannel',
@@ -37,6 +43,10 @@ const DEFAULT_STATE = {
   rowWidth: DEFAULT_ROW_WIDTH,
   margin: 0,
   scale: 'auto', // 'auto' (match the display) | one of SCALES
+  cps: TYPING.cps.default, // typing video: characters per second
+  leadIn: TYPING.leadIn.default, // seconds before the first character
+  hold: TYPING.hold.default, // seconds the finished comment stays
+  fps: 30,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -67,6 +77,7 @@ function loadState() {
       if (key in saved && isValid(key, saved[key])) loaded[key] = saved[key];
     }
   }
+  for (const key of ['name', 'message', 'timestamp']) loaded[key] = capText(loaded[key], LIMITS[key]);
   if (loaded.timestampAuto || !loaded.timestamp) {
     loaded.timestamp = formatTime(new Date());
     loaded.timestampAuto = true;
@@ -94,6 +105,9 @@ function isValid(key, value) {
     case 'rowWidth': return Number.isFinite(value) && value >= ROW_WIDTH.min && value <= ROW_WIDTH.max;
     case 'margin': return Number.isFinite(value) && value >= MARGIN.min && value <= MARGIN.max;
     case 'scale': return value === 'auto' || SCALES.includes(value);
+    case 'cps': case 'leadIn': case 'hold':
+      return Number.isFinite(value) && value >= TYPING[key].min && value <= TYPING[key].max;
+    case 'fps': return TYPING.fps.includes(value);
     default: return false;
   }
 }
@@ -113,11 +127,14 @@ function persistNow() {
   }
 }
 
-/** YouTube live chat's clock format, e.g. '2:41 PM'. */
+/** YouTube live chat's clock format: '2:41 PM', with U+202F before AM/PM. */
 function formatTime(date) {
   const hours = date.getHours();
-  return `${hours % 12 || 12}:${String(date.getMinutes()).padStart(2, '0')} ${hours < 12 ? 'AM' : 'PM'}`;
+  return `${hours % 12 || 12}:${String(date.getMinutes()).padStart(2, '0')}${NARROW_SPACE}${hours < 12 ? 'AM' : 'PM'}`;
 }
+
+/** A typed clock time ('7:54 PM') gets YouTube's separator too. */
+const youtubeTime = (text) => text.replace(/^(\d{1,2}:\d{2}) ?([AaPp][Mm])$/, `$1${NARROW_SPACE}$2`);
 
 const clamp = (value, { min, max }) => Math.min(max, Math.max(min, value));
 
@@ -148,17 +165,23 @@ function defaultAvatar(name, color, size) {
   return defaultAvatars.get(key);
 }
 
+const typingSettings = () => ({ cps: state.cps, fps: state.fps, leadIn: state.leadIn, hold: state.hold });
+/** The message as it will be typed (the same text buildProps exports), split into characters. */
+const typedCharacters = () => splitGraphemes(capText(normalizeMessage(state.message), LIMITS.message));
+
 /** RenderProps for `scale`, which picks the avatar/badge image size the way YouTube does. */
 async function buildProps(scale) {
   const s = { ...state }; // a snapshot: the state may change while the avatar is drawn
   const color = s.avatarColor === 'auto' ? pickAvatarColor(s.name) : s.avatarColor;
+  const timestamp = s.timestampAuto ? formatTime(new Date()) : s.timestamp;
   const hideAvatar = s.avatarMode === 'none';
   let avatarSrc = null;
   if (s.avatarMode === 'image' && s.avatarImage) avatarSrc = s.avatarImage[avatarSizeFor(scale)];
   else if (!hideAvatar) avatarSrc = await defaultAvatar(s.name, color, avatarSizeFor(scale));
   return {
-    name: s.name,
-    message: s.message.replace(/\r\n?|\n/g, ' '),
+    // The main process enforces the same limits: applying them here keeps preview and export identical.
+    name: capText(s.name, LIMITS.name),
+    message: capText(normalizeMessage(s.message), LIMITS.message),
     theme: s.theme,
     role: s.role,
     moderatorBadge: s.moderatorBadge,
@@ -166,7 +189,7 @@ async function buildProps(scale) {
     hideAvatar,
     avatarSrc,
     memberBadgeSrc: s.role === 'member' && s.badgeImage ? s.badgeImage[badgeSizeFor(scale)] : null,
-    timestamp: s.timestampOn && s.timestamp ? s.timestamp : null,
+    timestamp: s.timestampOn && timestamp ? capText(youtubeTime(timestamp), LIMITS.timestamp) : null,
     rowWidth: s.rowWidth,
     margin: s.margin,
   };
@@ -224,12 +247,27 @@ async function renderOnce() {
   Object.assign(outline.style, { left: `${box.x}px`, top: `${box.y}px`, width: `${box.width}px`, height: `${box.height}px` });
   outline.hidden = false;
   lastBox = box;
+  snapPreview();
   $('preview-error').hidden = true;
   const note = $('preview-note');
   note.textContent = Array.isArray(box.warnings) ? box.warnings.join(' ') : '';
   note.classList.toggle('warn', Boolean(note.textContent));
   updateExportInfo();
   root.dataset.preview = 'ready';
+}
+
+/**
+ * Centring can leave the preview a fraction of a device pixel off the pixel grid, which draws it slightly
+ * differently from the export. Nudge it onto whole device pixels with a relative offset (not a transform,
+ * which could put the iframe on its own compositing layer and change its text rendering).
+ */
+function snapPreview() {
+  const stage = $('preview-stage');
+  stage.style.left = stage.style.top = '0px';
+  const { left, top } = stage.getBoundingClientRect();
+  const dpr = window.devicePixelRatio;
+  stage.style.left = `${(Math.round(left * dpr) - left * dpr) / dpr}px`;
+  stage.style.top = `${(Math.round(top * dpr) - top * dpr) / dpr}px`;
 }
 
 /** Resolves to the stage's API once the preview iframe has loaded it. */
@@ -268,13 +306,30 @@ function updateExportInfo() {
 function watchPixelRatio() {
   matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`).addEventListener('change', () => {
     scheduleRender(0);
+    refreshDisplayScale(); // e.g. moved to another monitor with Win+Shift+Arrow, which main may not notice
     watchPixelRatio();
   }, { once: true });
+}
+
+/** 'Match display' follows the display the window is on (the editor's zoom is pinned to 1). */
+async function refreshDisplayScale() {
+  displayScale = window.devicePixelRatio;
+  try {
+    if (api) displayScale = await api.getDisplayScale();
+  } catch {
+    // Keep devicePixelRatio.
+  }
+  syncUi();
 }
 
 // ---- Form -----------------------------------------------------------------------------------------------
 
 function buildControls() {
+  // maxlength counts UTF-16 units, so it never lets more than LIMITS (code points) through.
+  $('name').maxLength = LIMITS.name;
+  $('message').maxLength = LIMITS.message;
+  $('timestamp').maxLength = LIMITS.timestamp;
+
   const swatches = $('swatches');
   const swatch = (value, color, label, mark) => {
     const wrap = document.createElement('label');
@@ -340,6 +395,10 @@ function writeForm() {
   $('row-width').value = String(state.rowWidth);
   $('margin').value = String(state.margin);
   $('scale').value = String(state.scale);
+  $('cps').value = String(state.cps);
+  $('lead-in').value = String(state.leadIn);
+  $('hold').value = String(state.hold);
+  setRadio('fps', state.fps);
 }
 
 /** Visibility and labels that follow the state. */
@@ -363,6 +422,8 @@ function syncUi() {
     button.setAttribute('aria-pressed', String(Number(button.dataset.width) === state.rowWidth));
   }
   $('scale').options[0].textContent = `Match display (${formatScale(clamp(displayScale, EXPORT_SCALE))}×)`;
+  $('cps-value').textContent = `${state.cps} characters per second`;
+  $('video-length').textContent = `${(typingFrames(typedCharacters().length, typingSettings()).length / state.fps).toFixed(1)} s video`;
   updateExportInfo();
 }
 
@@ -374,6 +435,7 @@ function showThumb(img, removeButton, src) {
 }
 
 function changed({ render = true } = {}) {
+  if (playback) stopTyping(); // any edit ends a typing preview
   syncUi();
   persist();
   if (render) scheduleRender();
@@ -385,7 +447,10 @@ function onFormEvent(event) {
   switch (target.name) {
     case 'name': state.name = target.value; break;
     case 'message': state.message = target.value; break;
-    case 'avatarMode': state.avatarMode = target.value; break;
+    case 'avatarMode':
+      state.avatarMode = target.value;
+      avatarUpload++; // an upload still being read must not switch the mode back
+      break;
     case 'avatarColor': state.avatarColor = target.value; break;
     case 'role': state.role = target.value; break;
     case 'moderatorBadge': state.moderatorBadge = target.value; break;
@@ -415,6 +480,28 @@ function onFormEvent(event) {
       state.scale = target.value === 'auto' ? 'auto' : Number(target.value);
       changed({ render: false });
       return;
+    case 'cps':
+      state.cps = clamp(Math.round(target.valueAsNumber), TYPING.cps);
+      changed({ render: false });
+      return;
+    case 'fps':
+      state.fps = Number(target.value);
+      changed({ render: false });
+      return;
+    case 'leadIn':
+    case 'hold': {
+      const limits = TYPING[target.name];
+      const value = target.valueAsNumber;
+      if (!Number.isFinite(value)) {
+        if (final) target.value = String(state[target.name]);
+        return;
+      }
+      if (!final && (value < limits.min || value > limits.max)) return;
+      state[target.name] = clamp(Math.round(value * 10) / 10, limits);
+      if (final) target.value = String(state[target.name]);
+      changed({ render: false });
+      return;
+    }
     default:
       return;
   }
@@ -423,27 +510,36 @@ function onFormEvent(event) {
 
 // ---- Images ---------------------------------------------------------------------------------------------
 
+let avatarUpload = 0; // bumped by every new choice and by Remove: only the latest upload may land
+let badgeUpload = 0;
+
 async function useAvatarFile(file) {
+  const upload = ++avatarUpload;
   try {
     setStatus('', 'Reading the image…');
-    state.avatarImage = await prepareAvatar(file);
+    const images = await prepareAvatar(file);
+    if (upload !== avatarUpload) return;
+    state.avatarImage = images;
     state.avatarMode = 'image';
     setRadio('avatarMode', 'image');
     setStatus('', '');
     changed();
   } catch (error) {
-    setStatus('error', error.message);
+    if (upload === avatarUpload) setStatus('error', error.message);
   }
 }
 
 async function useBadgeFile(file) {
+  const upload = ++badgeUpload;
   try {
     setStatus('', 'Reading the badge…');
-    state.badgeImage = await prepareBadge(file);
+    const images = await prepareBadge(file);
+    if (upload !== badgeUpload) return;
+    state.badgeImage = images;
     setStatus('', '');
     changed();
   } catch (error) {
-    setStatus('error', error.message);
+    if (upload === badgeUpload) setStatus('error', error.message);
   }
 }
 
@@ -506,9 +602,7 @@ async function runExport(kind) {
     setStatus('error', 'Saving and copying are only available in the desktop app.');
     return;
   }
-  busy = true;
-  $('save').disabled = true;
-  $('copy').disabled = true;
+  setBusy(true);
   const scale = exportScale();
   setStatus('', kind === 'save' ? 'Rendering…' : 'Copying…');
   try {
@@ -524,9 +618,113 @@ async function runExport(kind) {
   } catch (error) {
     setStatus('error', cleanError(error));
   } finally {
-    busy = false;
-    $('save').disabled = false;
-    $('copy').disabled = false;
+    setBusy(false);
+  }
+}
+
+/** Marks Save/Copy busy without disabling them, so keyboard focus stays where it was. */
+function setBusy(on) {
+  busy = on;
+  for (const id of ['save', 'copy']) $(id).setAttribute('aria-disabled', String(on));
+}
+
+// ---- Typing video ---------------------------------------------------------------------------------------
+
+let playback = 0; // id of the running typing preview (0: none)
+let playbackSeq = 0;
+let videoJob = null; // AbortController of the running video export
+
+/** Plays the typing animation in the preview, in real time; the button (or any edit) stops it. */
+async function playTyping() {
+  if (playback) {
+    stopTyping();
+    return;
+  }
+  const id = ++playbackSeq;
+  playback = id;
+  $('play').textContent = 'Stop';
+  try {
+    const stage = await stageApi();
+    const props = await buildProps(window.devicePixelRatio);
+    const characters = splitGraphemes(props.message);
+    const settings = typingSettings();
+    const end = typingFrames(characters.length, settings).length / settings.fps;
+    const started = performance.now();
+    let shown = -1;
+    while (playback === id) {
+      const t = (performance.now() - started) / 1000;
+      const count = shownAt(t, characters.length, settings);
+      if (count !== shown) {
+        shown = count;
+        await stage.render({ ...props, message: characters.slice(0, count).join('') });
+      }
+      if (t >= end) break;
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+  } catch (error) {
+    showPreviewError(`The typing preview failed: ${error?.message ?? error}`);
+  } finally {
+    if (playback === id) stopTyping();
+  }
+}
+
+function stopTyping() {
+  playback = 0;
+  $('play').textContent = 'Preview typing';
+  scheduleRender(0); // back to the whole comment
+}
+
+/**
+ * Saves the typing animation as an MP4: every character count the video shows is captured exactly like Save
+ * PNG (same scale), then the frames are encoded here. The button turns into Cancel while it runs.
+ */
+async function exportVideo() {
+  if (videoJob) {
+    videoJob.abort();
+    return;
+  }
+  if (busy) return;
+  if (!api) {
+    setStatus('error', 'Saving videos is only available in the desktop app.');
+    return;
+  }
+  if (playback) stopTyping();
+  const job = new AbortController();
+  videoJob = job;
+  setBusy(true);
+  $('video').textContent = 'Cancel video';
+  try {
+    const scale = exportScale();
+    const props = await buildProps(scale);
+    const characters = splitGraphemes(props.message);
+    const settings = typingSettings();
+    const frames = typingFrames(characters.length, settings);
+    const counts = [...new Set(frames)];
+    const states = new Map();
+    for (const [i, count] of counts.entries()) {
+      job.signal.throwIfAborted();
+      setStatus('', `Capturing frame ${i + 1} of ${counts.length}…`);
+      states.set(count, await api.capture({ ...props, message: characters.slice(0, count).join('') }, { scale }));
+    }
+    job.signal.throwIfAborted();
+    setStatus('', 'Encoding the video…');
+    const { encodeTypingVideo } = await import('./video.js');
+    const video = await encodeTypingVideo({
+      states, frames, fps: settings.fps, signal: job.signal,
+      onProgress: (done, total) => {
+        if (done % 30 === 0 || done === total) setStatus('', `Encoding frame ${done} of ${total}…`);
+      },
+    });
+    const result = await api.saveVideo(video.bytes, { name: props.name });
+    if (result.canceled) setStatus('', 'Save cancelled.');
+    else setStatus('ok', `Saved ${video.width} × ${video.height} px, ${video.duration.toFixed(1)} s video → ${result.filePath}`);
+  } catch (error) {
+    if (job.signal.aborted) setStatus('', 'Video cancelled.');
+    else setStatus('error', cleanError(error));
+  } finally {
+    videoJob = null;
+    setBusy(false);
+    $('video').textContent = 'Save video…';
   }
 }
 
@@ -563,22 +761,35 @@ function start() {
   wireFileInput('avatar-file', 'avatar-choose', useAvatarFile);
   wireFileInput('badge-file', 'badge-choose', useBadgeFile);
   $('avatar-remove').addEventListener('click', () => {
+    avatarUpload++;
     state.avatarImage = null;
     state.avatarMode = 'default';
     setRadio('avatarMode', 'default');
     changed();
+    form.querySelector('input[name="avatarMode"][value="default"]').focus(); // the Remove button is gone now
   });
   $('badge-remove').addEventListener('click', () => {
+    badgeUpload++;
     state.badgeImage = null;
     changed();
+    $('badge-choose').focus();
   });
+  // Chromium steps a focused number field on the wheel; blur it so the wheel scrolls the form instead.
+  for (const id of ['row-width', 'margin']) {
+    $(id).addEventListener('wheel', (event) => {
+      if (event.currentTarget === document.activeElement) event.currentTarget.blur();
+    }, { passive: true });
+  }
   wireDragAndDrop();
 
   $('save').addEventListener('click', () => runExport('save'));
+  $('video').addEventListener('click', exportVideo);
+  $('play').addEventListener('click', playTyping);
   $('copy').addEventListener('click', () => runExport('copy'));
   if (api) {
     api.onMenuCommand((command) => {
       if (command === 'save' || command === 'copy') runExport(command);
+      else if (command === 'video') exportVideo();
     });
   } else {
     setStatus('', 'Preview only: open the desktop app to save or copy.');
@@ -586,8 +797,15 @@ function start() {
   window.addEventListener('pagehide', persistNow);
 
   preview.addEventListener('load', () => scheduleRender(0));
+  // Window resizes re-centre the preview, and scrolling can move it by fractions of a device pixel.
+  new ResizeObserver(snapPreview).observe($('preview-scroll'));
+  $('preview-scroll').addEventListener('scroll', snapPreview, { passive: true });
   watchPixelRatio();
-  setInterval(followClock, 10_000);
+  (function tickEachMinute() {
+    followClock();
+    const now = new Date();
+    setTimeout(tickEachMinute, (60 - now.getSeconds()) * 1000 - now.getMilliseconds() + 20);
+  })();
   initDisplayScale().then(syncUi);
   scheduleRender(0);
 }

@@ -8,6 +8,7 @@ const root = document.documentElement;
 const app = document.querySelector('yt-live-chat-app');
 const chat = document.querySelector('yt-live-chat-renderer');
 const items = document.getElementById('items');
+let last = null; // what the last render laid out: { avatar, hideAvatar, margin }
 
 const clamp = (value, min, max, fallback) =>
   Number.isFinite(Number(value)) ? Math.min(max, Math.max(min, Number(value))) : fallback;
@@ -28,7 +29,8 @@ async function loadFonts(row) {
 
 /** Waits for every image; emoji that fail to download are swapped for text so the row still renders. */
 async function loadImages(row, { skip = null } = {}) {
-  const warnings = [];
+  const warnings = new Set();
+  const missingEmoji = new Set();
   await Promise.all([...row.querySelectorAll('img')].filter((img) => img !== skip).map(async (img) => {
     try {
       await withTimeout(img.decode(), IMAGE_TIMEOUT_MS);
@@ -38,13 +40,16 @@ async function loadImages(row, { skip = null } = {}) {
         fallback.className = 'emoji-fallback';
         fallback.textContent = img.alt;
         img.replaceWith(fallback);
-        warnings.push(`Emoji ${img.alt} could not be downloaded (offline?); it is drawn as text instead.`);
+        missingEmoji.add(img.alt);
       } else {
-        warnings.push(img.id === 'img' ? 'The avatar image could not be loaded.' : 'A badge image could not be loaded.');
+        warnings.add(img.id === 'img' ? 'The avatar image could not be loaded.' : 'A badge image could not be loaded.');
       }
     }
   }));
-  return warnings;
+  if (missingEmoji.size) {
+    warnings.add(`Emoji ${[...missingEmoji].join(' ')} could not be downloaded (are you offline?), so they are drawn as text.`);
+  }
+  return [...warnings];
 }
 
 async function render(props = {}) {
@@ -66,16 +71,23 @@ async function render(props = {}) {
   await nextFrame();
   await nextFrame();
 
+  last = { avatar, hideAvatar, margin };
+  return { ...measure(), warnings };
+}
+
+/** The capture box of the last render, measured again without rendering (e.g. after a window resize). */
+function measure() {
+  if (!last) throw new Error('Nothing has been rendered yet.');
   const box = chat.getBoundingClientRect();
   let { x, width } = box;
-  if (hideAvatar) {
+  if (last.hideAvatar) {
     // Crop the avatar out, as a snip starting just right of it would: the row keeps YouTube's layout (and
     // so every line break), and the capture starts at the avatar's right edge, less the margin.
-    const cut = avatar.getBoundingClientRect().right - margin - x;
+    const cut = last.avatar.getBoundingClientRect().right - last.margin - x;
     x += cut;
     width -= cut;
   }
-  return { x, y: box.y, width, height: box.height, warnings };
+  return { x, y: box.y, width, height: box.height };
 }
 
-window.stage = { render };
+window.stage = { render, measure };

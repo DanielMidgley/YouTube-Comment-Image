@@ -21,6 +21,9 @@ export const DEFAULT_AVATAR_COLOR_NAMES = [
 ];
 
 const MAX_FILE_BYTES = 40 * 1024 * 1024;
+// An upload that is already the right size is used as is only when it is small: metadata can make a tiny
+// image huge (and the main process refuses images over 5 MB). Bigger files are re-encoded instead.
+const KEEP_AS_IS_MAX_BYTES = 256 * 1024;
 const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 
 /** A palette colour picked by a stable hash (FNV-1a) of the name, so a name always gets the same colour. */
@@ -116,7 +119,8 @@ async function prepareSizes(blob, sizes, { background }) {
       : { x: 0, y: 0, side, whole: true };
     // The file itself can be used as is when it is already the right square size, cannot animate, and
     // compositing onto the background would not change a pixel (JPEG has no transparency).
-    const keepable = blob.type === 'image/jpeg' || (!background && blob.type === 'image/png' && !(await isAnimatedPng(blob)));
+    const keepable = blob.size <= KEEP_AS_IS_MAX_BYTES
+      && (blob.type === 'image/jpeg' || (!background && blob.type === 'image/png' && !(await isAnimatedPng(blob))));
 
     const result = {};
     for (const size of sizes) {

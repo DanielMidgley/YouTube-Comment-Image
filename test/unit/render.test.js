@@ -70,6 +70,8 @@ test('messages: emoji become YouTube emoji images, line breaks become spaces', (
   assert.equal(messageHtml('😆', { emojiOverrides: { '😆': 'app://local/x.png' } }).match(/src="([^"]+)"/)[1], 'app://local/x.png');
   assert.equal(normalizeMessage('a\r\nb\nc\rd'), 'a b c d');
   assert.equal(normalizeMessage('  kept  '), '  kept  ');
+  const nbsp = String.fromCharCode(0xa0); // YouTube's chat input turns these into plain spaces
+  assert.equal(normalizeMessage(`wait${nbsp}${nbsp}what`), 'wait  what');
 });
 
 test('timestamp text is always present (CSS decides whether it shows)', () => {

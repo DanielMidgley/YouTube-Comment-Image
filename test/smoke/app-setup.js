@@ -25,6 +25,7 @@ process.env.YT_COMMENT_HIDDEN = '1';
 
 export const recorded = {
   saveTo: path.join(OUT_DIR, 'app-save.png'),
+  saveVideoTo: path.join(OUT_DIR, 'app-save.mp4'),
   cancelNextSave: false,
   dialogs: [],
   clipboard: [],
@@ -37,7 +38,8 @@ dialog.showSaveDialog = async (_window, options) => {
     recorded.cancelNextSave = false;
     return { canceled: true, filePath: '' };
   }
-  return { canceled: false, filePath: recorded.saveTo };
+  const video = options?.filters?.[0]?.extensions?.[0] === 'mp4';
+  return { canceled: false, filePath: video ? recorded.saveVideoTo : recorded.saveTo };
 };
 
 clipboard.writeImage = (image) => { recorded.clipboard.push(image); };

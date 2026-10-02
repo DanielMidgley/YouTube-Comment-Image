@@ -24,10 +24,16 @@ test('names emoji like Noto: lowercase hex, at least 4 digits, no FE0F', () => {
   assert.equal(emojiCode('☺️'), '263a');
 });
 
-test('leaves text-style symbols as text', () => {
-  assert.deepEqual(codes('© ™ 1 # ❤'), ['© ™ 1 # ❤']);
-  assert.equal(isEmoji('☺'), false);
-  assert.equal(isEmoji('☺️'), true);
+test("follows YouTube's own emoji set: symbols it lists are images even without U+FE0F", () => {
+  assert.deepEqual(codes('© ™ ❤ ☺ ♥'), ['[00a9]', ' ', '[2122]', ' ', '[2764]', ' ', '[263a]', ' ', '[2665]']);
+  assert.deepEqual(codes('love ❤️ it'), ['love ', '[2764]', ' it']); // U+FE0F is dropped, as YouTube does
+  assert.deepEqual(codes('1 # * plain'), ['1 # * plain']);
+  assert.equal(isEmoji('☺'), true);
+});
+
+test("emoji newer than YouTube's set stay text, as they do on YouTube", () => {
+  assert.deepEqual(codes('so tired 🫩'), ['so tired 🫩']);
+  assert.equal(isEmoji('🫩'), false);
 });
 
 test('builds the URL YouTube uses (notoemoji 15.1, 72px)', () => {

@@ -7,6 +7,12 @@ html, body {
   overflow: hidden;
 }
 
+/* Always paint YouTube's own colours: a Windows contrast theme (forced colours) would otherwise recolour
+   the preview and the exported PNG. */
+html {
+  forced-color-adjust: none;
+}
+
 /* At fractional scales the capture is snapped outward to whole device pixels; the sliver past the chat box
    must be chat background, as it is on YouTube (the scrollbar track there is transparent over it). */
 html {

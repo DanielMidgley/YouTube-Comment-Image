@@ -15,8 +15,13 @@ const scoped = (host, extra = '') => `class="${extra}style-scope ${host}"`;
 const ROW = 'yt-live-chat-text-message-renderer';
 const CHIP = 'yt-live-chat-author-chip';
 
-/** Chat messages are a single paragraph: line breaks become spaces (YouTube keeps other whitespace as typed). */
-export const normalizeMessage = (message) => String(message).replace(/\r\n?|\n/g, ' ');
+const NBSP = String.fromCharCode(0xa0);
+
+/**
+ * Chat messages are a single paragraph, as YouTube's chat input makes them: line breaks and non-breaking
+ * spaces become plain spaces; other whitespace is kept as typed.
+ */
+export const normalizeMessage = (message) => String(message).replace(/\r\n?|\n/g, ' ').replaceAll(NBSP, ' ');
 
 export function messageHtml(message, { emojiOverrides } = {}) {
   let emojiCount = -1;

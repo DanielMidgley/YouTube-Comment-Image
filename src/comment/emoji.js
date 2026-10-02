@@ -1,13 +1,23 @@
-// Splits chat text into text and emoji runs the way YouTube live chat shows it: every emoji is drawn
-// as an image of Google's Noto emoji artwork (served from fonts.gstatic.com), everything else is text.
+// Splits chat text into text and emoji runs the way YouTube's live chat does (the emoji manager in its chat
+// client, live_chat_polymer.js): every U+FE0F is dropped, then the text is matched against YouTube's own emoji
+// set, longest first. Matches are drawn as images of Google's Noto artwork from fonts.gstatic.com; anything
+// else, including emoji newer than YouTube's set, stays text.
+import { YOUTUBE_EMOJI_CODES, YOUTUBE_EMOJI_VERSION } from './youtube-emoji.js';
 
-const RGI_EMOJI = /^\p{RGI_Emoji}$/v;
-const graphemes = new Intl.Segmenter('en', { granularity: 'grapheme' });
+export const NOTO_EMOJI_BASE = `https://fonts.gstatic.com/s/e/notoemoji/${YOUTUBE_EMOJI_VERSION}`;
 
-// The version YouTube's chat requests; 'latest' serves different (newer) artwork.
-export const NOTO_EMOJI_BASE = 'https://fonts.gstatic.com/s/e/notoemoji/15.1';
+const VARIATION_SELECTOR = String.fromCharCode(0xfe0f);
+const BACKSLASH = String.fromCharCode(92);
 
-export const isEmoji = (grapheme) => RGI_EMOJI.test(grapheme);
+const fromCode = (code) => String.fromCodePoint(...code.split('_').map((hex) => parseInt(hex, 16)));
+const EMOJI = new Set(YOUTUBE_EMOJI_CODES.trim().split(/\s+/).map(fromCode));
+// The expression YouTube builds: ids longest first, joined with '|', the one '*' (keycap 002a_20e3)
+// escaped, flags 'gi'.
+const PATTERN = new RegExp([...EMOJI].sort((a, b) => b.length - a.length).join('|').replace('*', `${BACKSLASH}*`), 'gi');
+
+const withoutVariationSelectors = (text) => text.replaceAll(VARIATION_SELECTOR, '');
+
+export const isEmoji = (text) => EMOJI.has(withoutVariationSelectors(text));
 
 /** Noto's name for an emoji: hex code points (at least 4 digits) joined by '_', without U+FE0F. */
 export function emojiCode(emoji) {
@@ -20,14 +30,16 @@ export function emojiCode(emoji) {
 
 export const emojiUrl = (emoji, base = NOTO_EMOJI_BASE) => `${base}/${emojiCode(emoji)}/72.png`;
 
-/** Returns [{ type: 'text', text } | { type: 'emoji', emoji }] in order, merging adjacent text. */
+/** Returns [{ type: 'text', text } | { type: 'emoji', emoji }] in order (U+FE0F removed, as YouTube does). */
 export function splitEmoji(text) {
+  const plain = withoutVariationSelectors(text);
   const runs = [];
-  for (const { segment } of graphemes.segment(text)) {
-    const last = runs.at(-1);
-    if (isEmoji(segment)) runs.push({ type: 'emoji', emoji: segment });
-    else if (last?.type === 'text') last.text += segment;
-    else runs.push({ type: 'text', text: segment });
+  let from = 0;
+  for (const match of plain.matchAll(PATTERN)) {
+    if (match.index > from) runs.push({ type: 'text', text: plain.slice(from, match.index) });
+    runs.push({ type: 'emoji', emoji: match[0] });
+    from = match.index + match[0].length;
   }
+  if (from < plain.length) runs.push({ type: 'text', text: plain.slice(from) });
   return runs;
 }

@@ -34,9 +34,10 @@ first run (More info → Run anyway). The version number comes from `package.jso
 ## What you can set
 
 - **Name and message**: the name is shown exactly as typed (YouTube shows `@handles`, and some older
-  accounts still show a display name). Emoji in the message are drawn with the same Noto emoji images
-  YouTube uses (downloaded on demand; without internet they fall back to your system's emoji font, and the
-  preview says so).
+  accounts still show a display name). Emoji in the message follow YouTube's own emoji list (Noto 15.1):
+  everything on it, including symbols such as ♥ © ™, is drawn with the same Noto images YouTube uses, and
+  newer emoji stay text, as they do on YouTube. The images are downloaded on demand; without internet they
+  fall back to your system's emoji font, and the preview says so.
 - **Avatar**: a YouTube-style default avatar (a coloured square with the first letter, shown as a circle),
   or any picture: choose a file or drop it on the window. Like YouTube, the app draws avatars from a 32 px
   image at up to 1.33× scale and from a 64 px one above that. **None** crops the avatar out, as if your
@@ -55,6 +56,20 @@ first run (More info → Run anyway). The version number comes from `package.jso
 
 Export with **Save PNG…** (Ctrl+S) or **Copy image** (Ctrl+Shift+C).
 
+## Typing video
+
+**Save video…** (Ctrl+Shift+S) exports an MP4 (H.264) in which the message types itself out one character
+at a time (an emoji counts as one character), with the name, avatar and badges there from the start:
+
+- **Typing speed**: 1–60 characters per second.
+- **Start delay** and **Hold at end**: how long the empty comment shows before typing starts, and how long
+  the finished comment stays.
+- **Frame rate**: 30 or 60 fps.
+
+**Preview typing** plays it in the preview. Every frame is captured exactly like the PNG export (same scale
+and settings), so the video shows the same pixel-faithful comment; as the text wraps, the row grows
+downwards, and the frame size is that of the finished comment.
+
 ## How it stays faithful
 
 The comment is real YouTube markup styled by YouTube's own CSS, not an imitation:
@@ -69,7 +84,7 @@ The comment is real YouTube markup styled by YouTube's own CSS, not an imitation
 
 ## Tests
 
-- `npm test`: unit tests (emoji handling, HTML escaping, the generated markup).
+- `npm test`: unit tests (emoji handling, text limits, typing timing, HTML escaping, the generated markup).
 - `npm run test:visual`: the golden test. It opens the saved YouTube live-chat page (`yt_example_page/`,
   not included in the repository), screenshots real chat rows (plus owner, member, verified, timestamp,
   light-theme, classic-moderator and cropped-avatar variants made from them), renders the same comments
@@ -77,8 +92,11 @@ The comment is real YouTube markup styled by YouTube's own CSS, not an imitation
   and 2×. It skips itself when the saved page isn't present.
 - `node scripts/electron.js test/smoke/capture.js`: the capture pipeline (sizes at every scale, queueing,
   timeouts, crash recovery).
-- `node scripts/electron.js test/smoke/app.js`: the whole app, run hidden: editing, saving, copying,
-  restoring saved settings, and the security checks.
+- `node scripts/electron.js test/smoke/app.js`: the whole app, run hidden: editing, saving, copying, a
+  typing video (checked by reading the MP4 back), restoring saved settings, and the security checks.
+
+YouTube's emoji list is bundled in `src/comment/youtube-emoji.js`; `node scripts/update-emoji.js [url]`
+regenerates it from the list YouTube's chat loads.
 
 ## Project layout
 

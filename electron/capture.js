@@ -33,9 +33,12 @@ const SNAP_EPSILON = 1e-3; // device px; absorbs float noise such as 400.0000305
 // Chromium cannot allocate surfaces beyond its max texture size; refuse early with a clear message.
 const MAX_OUTPUT_SIDE = 16_384;
 const MAX_OUTPUT_PIXELS = 50_000_000;
+// After a capture that needed a window bigger than this (in DIP²), the window is dropped so its GPU memory
+// is released; the next capture starts from a fresh, small one.
+const BIG_WINDOW_DIP_AREA = 2048 * 2048;
 
 const config = { stageUrl: DEFAULT_STAGE_URL, timeoutMs: CAPTURE_TIMEOUT_MS };
-let stage = null; // { win, ready: Promise<stage> } for the current hidden stage window
+let stage = null; // { win, ready: Promise<stage>, gone: Promise<never> } for the current hidden stage window
 let queue = Promise.resolve();
 
 class CaptureTimeoutError extends Error {}
@@ -120,18 +123,28 @@ export function disposeCapture() {
 }
 
 async function captureOnce(props, scale) {
-  const { win } = await ensureStage();
+  const current = await ensureStage();
+  // A renderer crash or a closed window ends the capture at once, with a clear message (not a timeout).
+  const result = await Promise.race([captureOn(current.win, props, scale), current.gone]);
+  // A huge export leaves a huge window (and its GPU memory) behind: let the next capture start afresh.
+  const [width, height] = current.win.isDestroyed() ? [0, 0] : current.win.getContentSize();
+  if (width * height > BIG_WINDOW_DIP_AREA) disposeCapture();
+  return result;
+}
+
+async function captureOn(win, props, scale) {
   const wc = win.webContents;
   const zoom = await applyScale(wc, scale);
 
   // The stage lays the row out at a fixed width from the top-left corner, so the viewport only has to be
-  // big enough. If the window had to grow, measure again in case the layout depends on it after all.
+  // big enough. If the window had to grow, measure again in case the layout depends on it after all
+  // (measuring, not re-rendering: that would wait for every image again).
   let { box, warnings } = await renderOnStage(wc, props);
   for (let pass = 0; pass < 2; pass++) {
     checkOutputSize(box, scale);
     if (!(await ensureViewport(win, box, zoom))) break;
-    const again = await renderOnStage(wc, props);
-    warnings = again.warnings;
+    const again = await measureOnStage(wc, props);
+    if (again.warnings) warnings = again.warnings;
     if (sameBox(again.box, box)) break;
     box = again.box;
   }
@@ -146,19 +159,23 @@ async function captureRegionNow(wc, rect, scale, snap) {
   const scroll = await wc.executeJavaScript('({ x: window.scrollX, y: window.scrollY })');
   if (scroll.x !== 0 || scroll.y !== 0) throw new Error(`captureRegion: the page is scrolled (${scroll.x}, ${scroll.y}); rects are taken from the document origin.`);
   const win = BrowserWindow.fromWebContents(wc);
-  if (win) await ensureViewport(win, rect, zoom);
-  await nextFrames(wc, 2);
 
   // Copy from the document origin (in DIP, with 1 DIP of slack so rounding can never come up short) and
-  // crop in device pixels, so fractional positions are rounded once, in the output's own pixel grid.
+  // crop in device pixels, so fractional positions are rounded once, in the output's own pixel grid. The
+  // copied area must be a whole number of device pixels (at 125 %, a multiple of 4 DIP): otherwise
+  // Chromium resamples the copy and the comment comes out blurred.
   const crop = deviceRect(rect, scale, snap);
-  const toDip = zoom / scale; // device px → DIP (1 / the window's real device scale factor)
-  let area = { x: 0, y: 0, width: Math.ceil((crop.x + crop.width) * toDip) + 1, height: Math.ceil((crop.y + crop.height) * toDip) + 1 };
-  if (win) {
-    const [viewWidth, viewHeight] = win.getContentSize();
-    area = { ...area, width: Math.min(viewWidth, area.width), height: Math.min(viewHeight, area.height) };
-  }
-  const { image, stable } = await captureStableFrame(wc, area, crop);
+  const dsf = Math.round((scale / zoom) * 1000) / 1000; // the window's real device scale factor
+  const area = {
+    x: 0,
+    y: 0,
+    width: wholeDevicePixels(Math.ceil((crop.x + crop.width) / dsf) + 1, dsf),
+    height: wholeDevicePixels(Math.ceil((crop.y + crop.height) / dsf) + 1, dsf),
+  };
+  checkCaptureArea(area, dsf, scale);
+  if (win) await ensureViewport(win, { x: 0, y: 0, width: area.width / zoom, height: area.height / zoom }, zoom);
+  await nextFrames(wc, 2);
+  const { image, stable } = await captureStableFrame(wc, area, crop, dsf);
 
   const png = image.toPNG();
   const { width, height } = pngSize(png);
@@ -189,8 +206,15 @@ function ensureStage() {
       spellcheck: false,
     },
   });
-  const current = { win, ready: null };
+  const current = { win, ready: null, gone: null };
   stage = current;
+  current.gone = new Promise((_, reject) => {
+    win.webContents.once('render-process-gone', (_event, details) => {
+      reject(new Error(`The capture page stopped unexpectedly (${details.reason}). Please try again.`));
+    });
+    win.once('closed', () => reject(new Error('The capture window was closed. Please try again.')));
+  });
+  current.gone.catch(() => {}); // only meaningful while a capture is running
 
   const drop = () => { if (stage === current) stage = null; };
   win.on('closed', drop);
@@ -286,18 +310,34 @@ async function renderOnStage(wc, props) {
   return { box, warnings };
 }
 
+/** The stage's current box without rendering again (falls back to rendering for stages without measure()). */
+async function measureOnStage(wc, props) {
+  const box = await wc.executeJavaScript("typeof window.stage.measure === 'function' ? window.stage.measure() : null", true);
+  if (box === null) return renderOnStage(wc, props);
+  if (!isValidRect(box)) throw new Error(`The stage returned an invalid capture box: ${JSON.stringify(box)}`);
+  return { box: { x: box.x, y: box.y, width: box.width, height: box.height }, warnings: null };
+}
+
 /**
  * capturePage copies whatever frame the compositor last received, which can lag the DOM by a frame.
  * Capture until two consecutive copies of the crop (a frame apart) are identical, within a time budget.
  * Only the crop is compared, so animations elsewhere on the page don't matter.
  */
-async function captureStableFrame(wc, area, crop) {
+async function captureStableFrame(wc, area, crop, dsf) {
   const deadline = performance.now() + STABLE_FRAME_BUDGET_MS;
   let previous = null;
   for (;;) {
-    const frame = await wc.capturePage(area, { stayHidden: true });
+    let frame;
+    try {
+      frame = await wc.capturePage(area, { stayHidden: true });
+    } catch (error) {
+      throw new Error(`Chromium could not capture the comment (${error.message}). Try a smaller scale or margin.`);
+    }
     if (frame.isEmpty()) throw new Error('Chromium returned an empty capture.');
     const size = frame.getSize();
+    if (size.width !== Math.round(area.width * dsf) || size.height !== Math.round(area.height * dsf)) {
+      console.warn(`[capture] got ${size.width}×${size.height} px for ${area.width}×${area.height} DIP at ${dsf}×: the copy was resampled.`);
+    }
     if (crop.x + crop.width > size.width || crop.y + crop.height > size.height) {
       throw new Error(`The ${crop.width}×${crop.height} px region at (${crop.x}, ${crop.y}) lies outside the captured ${size.width}×${size.height} px.`);
     }
@@ -320,6 +360,26 @@ export function deviceRect({ x, y, width, height }, scale, snap = 'round') {
     return { x: left, y: top, width: right - left, height: bottom - top };
   }
   return { x: Math.round(x * scale), y: Math.round(y * scale), width: Math.round(width * scale), height: Math.round(height * scale) };
+}
+
+/**
+ * The smallest size from `dip` up that is a whole number of device pixels at `dsf` (a multiple of 4 DIP at
+ * every quarter-step scale such as 125 % or 175 %); `dip` itself for unusual custom scales.
+ */
+export function wholeDevicePixels(dip, dsf) {
+  for (let size = dip; size < dip + 100; size++) {
+    if (Math.abs(size * dsf - Math.round(size * dsf)) < 1e-4) return size;
+  }
+  return dip;
+}
+
+/** The copied area (box plus slack) must fit Chromium's surface limits too, or the copy fails obscurely. */
+function checkCaptureArea(area, dsf, scale) {
+  const width = Math.round(area.width * dsf);
+  const height = Math.round(area.height * dsf);
+  if (width > MAX_OUTPUT_SIDE || height > MAX_OUTPUT_SIDE || width * height > MAX_OUTPUT_PIXELS) {
+    throw new RangeError(`The comment is too large to export at ${scale}× (it needs ${width}×${height} px). Use a smaller scale, margin or message.`);
+  }
 }
 
 function checkOutputSize(rect, scale) {

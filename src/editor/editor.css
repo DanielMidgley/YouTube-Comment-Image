@@ -146,6 +146,14 @@ textarea {
 }
 
 input.short { width: 84px; }
+
+input[type="range"] {
+  width: 100%;
+  margin: 4px 0 0;
+  accent-color: var(--primary);
+}
+
+.row-label { min-width: 88px; font-weight: 500; }
 #timestamp { width: 96px; }
 
 .counter {
@@ -301,6 +309,8 @@ input.short { width: 84px; }
 
 .button:hover { background: var(--field-hover); border-color: #4a515c; }
 .button:disabled { opacity: 0.55; cursor: default; }
+/* Busy (an export is running): looks disabled but keeps keyboard focus. */
+.button[aria-disabled="true"] { opacity: 0.55; cursor: progress; }
 
 .button.ghost {
   background: transparent;
@@ -449,4 +459,26 @@ input.short { width: 84px; }
   color: var(--text);
   font-size: 16px;
   font-weight: 500;
+}
+
+/* Windows contrast themes (forced colours): box-shadows and backgrounds are dropped there, so mark the
+   selected segment and swatch with an outline, and keep the swatches' own colours. */
+@media (forced-colors: active) {
+  .segmented input:checked + span {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  .swatch input {
+    forced-color-adjust: none;
+  }
+
+  .swatch input:checked {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  .button[aria-disabled="true"] {
+    color: GrayText;
+  }
 }

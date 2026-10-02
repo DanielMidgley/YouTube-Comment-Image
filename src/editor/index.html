@@ -87,10 +87,13 @@
 
     <section class="group" aria-labelledby="h-message">
       <h2 id="h-message">Message</h2>
-      <label class="field">
-        <span class="label">Text <span class="counter" id="counter" aria-live="polite">0/200</span></span>
-        <textarea id="message" name="message" rows="4" spellcheck="true" placeholder="Say something…"></textarea>
-      </label>
+      <div class="field">
+        <div class="label">
+          <label for="message">Text</label>
+          <span class="counter" id="counter" title="YouTube's chat allows 200 characters">0/200</span>
+        </div>
+        <textarea id="message" name="message" rows="4" spellcheck="true" placeholder="Say something…" aria-describedby="counter"></textarea>
+      </div>
 
       <div class="field">
         <div class="inline">
@@ -133,6 +136,42 @@
         <p class="hint" id="margin-hint">Extra chat background around the comment.</p>
       </div>
     </section>
+
+    <section class="group" aria-labelledby="h-video">
+      <h2 id="h-video">Typing video</h2>
+      <div class="field">
+        <div class="label">
+          <label for="cps">Typing speed</label>
+          <output id="cps-value" for="cps" class="counter"></output>
+        </div>
+        <input id="cps" name="cps" type="range" min="1" max="60" step="1">
+      </div>
+
+      <div class="field inline">
+        <label for="lead-in" class="row-label">Start delay</label>
+        <input id="lead-in" name="leadIn" type="number" min="0" max="5" step="0.1" class="short">
+        <span class="unit">s</span>
+      </div>
+      <div class="field inline">
+        <label for="hold" class="row-label">Hold at end</label>
+        <input id="hold" name="hold" type="number" min="0" max="10" step="0.5" class="short">
+        <span class="unit">s</span>
+      </div>
+
+      <fieldset class="field">
+        <legend class="label">Frame rate</legend>
+        <div class="segmented">
+          <label><input type="radio" name="fps" value="30"><span>30 fps</span></label>
+          <label><input type="radio" name="fps" value="60"><span>60 fps</span></label>
+        </div>
+      </fieldset>
+
+      <div class="field inline">
+        <button type="button" id="play" class="button">Preview typing</button>
+        <span class="hint" id="video-length"></span>
+      </div>
+      <p class="hint">The message types itself out one character at a time; name, avatar and badges are there from the start.</p>
+    </section>
   </form>
 
   <main class="preview" aria-label="Preview">
@@ -154,6 +193,7 @@
         <select id="scale" name="scale"></select>
       </label>
       <button type="button" id="copy" class="button" aria-keyshortcuts="Control+Shift+C" title="Copy image (Ctrl+Shift+C)">Copy image</button>
+      <button type="button" id="video" class="button" aria-keyshortcuts="Control+Shift+S" title="Save typing video (Ctrl+Shift+S)">Save video…</button>
       <button type="button" id="save" class="button primary" aria-keyshortcuts="Control+S" title="Save PNG (Ctrl+S)">Save PNG…</button>
     </footer>
   </main>

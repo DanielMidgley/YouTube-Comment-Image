@@ -5,6 +5,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { appUrl, handleAppScheme, registerAppScheme } from './protocol.js';
 import { MAX_SCALE, MIN_SCALE, captureComment, disposeCapture } from './capture.js';
+import { LIMITS as TEXT_LIMITS, capText } from '../src/comment/limits.js';
 
 registerAppScheme();
 
@@ -15,7 +16,9 @@ const BACKGROUND = '#15171b'; // --app-bg in src/editor/editor.css, so there is 
 // Set by test/smoke/app.js: run the real app with the editor window kept hidden.
 const HIDDEN = process.env.YT_COMMENT_HIDDEN === '1';
 
-const LIMITS = { name: 200, message: 1000, timestamp: 40, url: 2048, dataUrl: 5 * 1024 * 1024 };
+// Text limits are shared with the editor, so its preview always shows exactly what gets exported.
+const LIMITS = { ...TEXT_LIMITS, url: 2048, dataUrl: 5 * 1024 * 1024 };
+const MAX_VIDEO_BYTES = 1024 * 1024 * 1024;
 const THEMES = ['dark', 'light'];
 const ROLES = ['viewer', 'member', 'moderator', 'owner'];
 const MODERATOR_BADGES = ['shield', 'wrench'];
@@ -53,11 +56,13 @@ function start() {
 }
 
 function createEditorWindow() {
+  // Never larger than the work area: on small high-DPI screens the export bar must stay above the taskbar.
+  const { workAreaSize: area } = screen.getPrimaryDisplay();
   editorWindow = new BrowserWindow({
-    width: 1280,
-    height: 860,
-    minWidth: 960,
-    minHeight: 640,
+    width: Math.min(1280, area.width),
+    height: Math.min(860, area.height),
+    minWidth: Math.min(960, area.width),
+    minHeight: Math.min(520, area.height),
     title: 'YouTube Chat Comment',
     show: false,
     backgroundColor: BACKGROUND,
@@ -71,8 +76,14 @@ function createEditorWindow() {
   });
   const win = editorWindow;
   win.once('ready-to-show', () => { if (!HIDDEN) win.show(); });
-  win.on('moved', emitScaleIfChanged);
-  win.on('resized', emitScaleIfChanged);
+  // 'moved'/'resized' only fire at the end of a mouse drag; keyboard snaps and programmatic moves only
+  // send 'move'/'resize', so follow those too (debounced).
+  let scaleTimer = null;
+  const scaleSoon = () => {
+    clearTimeout(scaleTimer);
+    scaleTimer = setTimeout(emitScaleIfChanged, 150);
+  };
+  for (const event of ['moved', 'resized', 'move', 'resize']) win.on(event, scaleSoon);
   win.on('closed', () => {
     editorWindow = null;
     disposeCapture();
@@ -124,6 +135,7 @@ function buildMenu() {
       submenu: [
         { id: 'save', label: 'Save PNG…', accelerator: 'CmdOrCtrl+S', click: command('save') },
         { id: 'copy', label: 'Copy Image', accelerator: 'CmdOrCtrl+Shift+C', click: command('copy') },
+        { id: 'video', label: 'Save Typing Video…', accelerator: 'CmdOrCtrl+Shift+S', click: command('video') },
         { type: 'separator' },
         { role: 'quit' },
       ],
@@ -186,10 +198,42 @@ function registerIpc() {
     });
     if (canceled || !filePath) return { canceled: true, filePath: null, width, height, warnings };
 
-    const target = path.extname(filePath) ? filePath : `${filePath}.png`;
+    const target = await withExtension(owner, filePath, 'png');
+    if (!target) return { canceled: true, filePath: null, width, height, warnings };
     await fs.writeFile(target, png);
     lastSaveDir = path.dirname(target);
     return { canceled: false, filePath: target, width, height, warnings };
+  });
+
+  // One frame of a typing video: the same capture as Save/Copy, handed back to the editor to encode.
+  ipcMain.handle('comment:capture', async (event, rawProps, rawOptions) => {
+    assertFromEditor(event);
+    const props = sanitizeProps(rawProps);
+    const { scale } = sanitizeOptions(rawOptions);
+    const { png, width, height, warnings } = await captureComment(props, { scale });
+    return { png, width, height, warnings };
+  });
+
+  ipcMain.handle('comment:save-video', async (event, bytes, info) => {
+    assertFromEditor(event);
+    if (!(bytes instanceof Uint8Array) || bytes.length < 16 || bytes.length > MAX_VIDEO_BYTES
+      || Buffer.from(bytes.buffer, bytes.byteOffset + 4, 4).toString('latin1') !== 'ftyp') {
+      throw new Error('Invalid video: expected an MP4 file of at most 1 GB.');
+    }
+    const name = isPlainObject(info) && typeof info.name === 'string' ? text(info.name, 'name', LIMITS.name) : '';
+    const owner = BrowserWindow.fromWebContents(event.sender) ?? editorWindow;
+    const { canceled, filePath } = await dialog.showSaveDialog(owner, {
+      title: 'Save typing video',
+      defaultPath: path.join(lastSaveDir ?? defaultSaveDir(), `youtube-comment-${slug(name)}.mp4`),
+      filters: [{ name: 'MP4 video', extensions: ['mp4'] }],
+      properties: ['showOverwriteConfirmation', 'createDirectory'],
+    });
+    if (canceled || !filePath) return { canceled: true, filePath: null };
+    const target = await withExtension(owner, filePath, 'mp4');
+    if (!target) return { canceled: true, filePath: null };
+    await fs.writeFile(target, bytes);
+    lastSaveDir = path.dirname(target);
+    return { canceled: false, filePath: target };
   });
 
   ipcMain.handle('comment:copy', async (event, rawProps, rawOptions) => {
@@ -218,6 +262,30 @@ function emitScaleIfChanged() {
   if (scale === lastScale) return;
   lastScale = scale;
   editorWindow.webContents.send('display:scale-changed', scale);
+}
+
+/**
+ * `filePath` with `.ext` added when the name has no extension, or null when that file exists and the user
+ * chooses not to replace it (the save dialog only confirmed overwriting the name as typed).
+ */
+async function withExtension(owner, filePath, ext) {
+  if (path.extname(filePath)) return filePath;
+  const target = `${filePath}.${ext}`;
+  try {
+    await fs.access(target);
+  } catch {
+    return target; // nothing there yet
+  }
+  const { response } = await dialog.showMessageBox(owner, {
+    type: 'warning',
+    buttons: ['Replace', 'Cancel'],
+    defaultId: 1,
+    cancelId: 1,
+    title: 'Replace file?',
+    message: `${path.basename(target)} already exists.`,
+    detail: 'Do you want to replace it?',
+  });
+  return response === 0 ? target : null;
 }
 
 function defaultSaveDir() {
@@ -277,8 +345,7 @@ function isPlainObject(value) {
 
 function text(value, field, max) {
   if (typeof value !== 'string') throw new Error(`Invalid comment: ${field} must be text.`);
-  if (value.length <= max) return value;
-  return [...value].slice(0, max).join(''); // by code point, so emoji are never split
+  return capText(value, max); // bounded work on any input; never splits an emoji
 }
 
 function oneOf(value, allowed, field) {

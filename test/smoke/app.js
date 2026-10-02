@@ -75,9 +75,9 @@ async function run() {
   check(!editor.isVisible(), 'editor window exists and stays hidden in smoke mode');
   check(editor.getTitle() === 'YouTube Chat Comment', `window title "${editor.getTitle()}"`);
   const [minWidth, minHeight] = editor.getMinimumSize();
-  check(minWidth === 960 && minHeight === 640, `minimum size ${minWidth}×${minHeight}`);
-  check(await js("Object.keys(window.ytComment).sort().join()") === 'copy,getDisplayScale,onDisplayScaleChange,onMenuCommand,save',
-    'window.ytComment exposes exactly save, copy, getDisplayScale, onDisplayScaleChange, onMenuCommand');
+  check(minWidth === 960 && minHeight === 520, `minimum size ${minWidth}×${minHeight}`);
+  check(await js("Object.keys(window.ytComment).sort().join()") === 'capture,copy,getDisplayScale,onDisplayScaleChange,onMenuCommand,save,saveVideo',
+    'window.ytComment exposes exactly its eight calls');
   check(await js('typeof require + typeof process + typeof module') === 'undefinedundefinedundefined', 'no Node.js globals in the editor');
   const displayScale = await js('ytComment.getDisplayScale()');
   check(typeof displayScale === 'number' && displayScale > 0, `getDisplayScale() → ${displayScale}`);
@@ -132,6 +132,22 @@ async function run() {
   check(copied2.getSize().width === 800 && copied2.getSize().height === 64, `2× clipboard image ${copied2.getSize().width}×${copied2.getSize().height}`);
   check(rgbAt(copied2, 1, 1).every((v) => v === 0xff), `light chat background (rgb ${rgbAt(copied2, 1, 1)})`);
   fs.writeFileSync(path.join(OUT_DIR, 'app-copy-light-2x.png'), copied2.toPNG());
+
+  // A Windows contrast theme (forced colours) must not recolour the export: emulate it on the capture window.
+  const captureWindow = BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().startsWith(STAGE_URL));
+  const cdp = captureWindow.webContents.debugger;
+  cdp.attach('1.3');
+  try {
+    await cdp.sendCommand('Emulation.setEmulatedMedia', { features: [{ name: 'forced-colors', value: 'active' }] });
+    menuClick('copy');
+    await waitStatus(/^Copied 800/);
+    const forced = recorded.clipboard.at(-1);
+    check(forced !== copied2 && rgbAt(forced, 1, 1).every((v) => v === 0xff) && forced.toBitmap().equals(copied2.toBitmap()),
+      `contrast theme (forced colours) leaves the export unchanged (background rgb ${rgbAt(forced, 1, 1)})`);
+  } finally {
+    await cdp.sendCommand('Emulation.setEmulatedMedia', { features: [] }).catch(() => {});
+    cdp.detach();
+  }
 
   console.log('\n== Avatar upload through the file input');
   const avatarFile = path.join(OUT_DIR, 'app-test-avatar.png');
@@ -209,6 +225,55 @@ async function run() {
   await setRadio('moderatorBadge', 'shield');
   await setRadio('role', 'viewer');
   await previewReady();
+
+  console.log('\n== Keyboard focus and text limits');
+  await js("document.getElementById('copy').focus()");
+  menuClick('copy');
+  await waitStatus(/^Copied/);
+  check(await js('document.activeElement.id') === 'copy', 'focus stays on Copy image through an export');
+  check(await js("document.getElementById('message').maxLength") === 1000, 'the message box takes at most 1000 characters (the export limit)');
+  check(await js("document.querySelector('label[for=\"message\"]').textContent") === 'Text', 'the message box is labelled just "Text" (the counter is a description)');
+  await js("document.getElementById('avatar-remove').click()");
+  check(await js("document.activeElement.matches('input[name=\"avatarMode\"][value=\"default\"]')"), 'after Remove, focus moves to the Letter avatar option');
+  // Put the uploaded avatar back for the checks below.
+  wc.debugger.attach('1.3');
+  try {
+    const { result } = await wc.debugger.sendCommand('Runtime.evaluate', { expression: "document.getElementById('avatar-file')" });
+    await wc.debugger.sendCommand('DOM.setFileInputFiles', { files: [avatarFile], objectId: result.objectId });
+  } finally {
+    wc.debugger.detach();
+  }
+  await poll(() => js("!document.getElementById('avatar-thumb').hidden"), Boolean, 5000, 'the avatar thumbnail');
+  await previewReady();
+
+  console.log('\n== Typing video (File > Save Typing Video…)');
+  await js(`(() => {
+    const set = (id, value, type) => {
+      const el = document.getElementById(id);
+      el.value = value;
+      el.dispatchEvent(new Event(type, { bubbles: true }));
+    };
+    set('message', 'Hi 😆', 'input');
+    set('cps', '10', 'input');
+    set('lead-in', '0.2', 'change');
+    set('hold', '0.5', 'change');
+  })()`);
+  await previewReady();
+  // 4 characters: the last appears at 0.2 + 3/10 s, then 0.5 s of hold = 1.0 s, 30 frames at 30 fps.
+  check(await js("document.getElementById('video-length').textContent") === '1.0 s video', 'the video length is shown');
+  menuClick('video');
+  const videoStatus = await poll(status, (text) => /^Saved .* video|error|invalid|could not|failed/i.test(text), 60_000, 'the video export');
+  check(/^Saved 800 × 64 px, 1\.0 s video → /.test(videoStatus), `status "${videoStatus}"`);
+  const mp4 = fs.readFileSync(recorded.saveVideoTo);
+  check(mp4.toString('latin1', 4, 8) === 'ftyp', `${path.basename(recorded.saveVideoTo)} is an MP4 (${mp4.length} bytes)`);
+  const { ALL_FORMATS, BufferSource, EncodedPacketSink, Input } = await import('mediabunny');
+  const input = new Input({ source: new BufferSource(mp4), formats: ALL_FORMATS });
+  const track = await input.getPrimaryVideoTrack();
+  let packets = 0;
+  for await (const _ of new EncodedPacketSink(track).packets()) packets++;
+  const duration = await input.computeDuration();
+  check(track.codec === 'avc' && track.displayWidth === 800 && track.displayHeight === 64 && packets === 30 && Math.abs(duration - 1) < 0.01,
+    `H.264 track ${track.displayWidth}×${track.displayHeight}, ${packets} frames, ${duration.toFixed(3)} s`);
 
   console.log('\n== avatar.js in the page');
   const avatarInfo = await js(`import('../comment/avatar.js').then(async (m) => {

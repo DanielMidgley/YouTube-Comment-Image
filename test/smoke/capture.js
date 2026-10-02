@@ -321,9 +321,15 @@ async function realStageSuite() {
   await captureAndCheck('real-multiline', sampleProps({ rowWidth: 300, margin: 8, message: 'word '.repeat(40) }), 1.5, { exactBackground: false });
 }
 
-/** With --force-dsf=N: the N× capture here (zoom 1) must equal the normal run's N× capture (zoom N). */
+/**
+ * With --force-dsf=N: the N× capture here (zoom 1) must equal the normal run's N× capture (zoom N) exactly.
+ * Captures at other scales zoom the page by different factors in the two runs, and very long text can then
+ * put a few glyphs on other sub-pixel positions, so a hair of difference is allowed there; resampling, the
+ * failure this guards against, changes about 15 % of the pixels.
+ */
 function compareWithBaseline() {
   let compared = 0;
+  const scaleOf = (file) => Number(path.basename(file).match(/-(\d+(?:_\d+)?)x\.png$/)?.[1].replace('_', '.'));
   for (const file of written) {
     const baseline = path.join(BASE_DIR, path.basename(file));
     if (!fs.existsSync(baseline)) continue;
@@ -337,7 +343,8 @@ function compareWithBaseline() {
       for (let i = 0; i < pa.length; i += 4) if (pa.readUInt32LE(i) !== pb.readUInt32LE(i)) differing++;
     }
     compared++;
-    check(differing === 0, `${path.basename(file)}: real ${forcedDsf}× display vs zoom on the baseline display: ${differing < 0 ? `size ${sa.width}×${sa.height} vs ${sb.width}×${sb.height}` : `${differing} differing pixels`}`);
+    const allowed = scaleOf(file) === Number(forcedDsf) ? 0 : Math.floor(sa.width * sa.height * 0.0005);
+    check(differing >= 0 && differing <= allowed, `${path.basename(file)}: real ${forcedDsf}× display vs zoom on the baseline display: ${differing < 0 ? `size ${sa.width}×${sa.height} vs ${sb.width}×${sb.height}` : `${differing} differing pixels (allowed ${allowed})`}`);
   }
   if (!compared) note('no baseline PNGs to compare with; run once without --force-dsf first');
 }
