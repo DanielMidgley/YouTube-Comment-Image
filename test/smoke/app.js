@@ -170,6 +170,46 @@ async function run() {
   check(centre.every((v) => v > 230) && red[0] > 200 && red[1] < 90 && left.every((v) => v > 230),
     `uploaded avatar in the export (centre ${centre}, ring ${red}, left ${left})`);
 
+  console.log('\n== No avatar (cropped out)');
+  const setAvatarMode = (mode) => js(`(() => {
+    const radio = document.querySelector('input[name="avatarMode"][value="${mode}"]');
+    radio.checked = true;
+    radio.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+  await setAvatarMode('none');
+  await previewReady();
+  check(await js("!document.getElementById('avatar-none').hidden && document.getElementById('avatar-image').hidden"), 'choosing None shows its hint');
+  check(await js("document.getElementById('export-size').textContent") === 'Export: 704 × 64 px at 2×', 'the export loses the avatar column (800 − 2×48 px)');
+  menuClick('copy');
+  await waitStatus(/^Copied 704/);
+  const cropped = recorded.clipboard.at(-1);
+  fs.writeFileSync(path.join(OUT_DIR, 'app-copy-no-avatar-2x.png'), cropped.toPNG());
+  // The image starts where the avatar ended: its first 32 px (the 16 px gap at 2×) are plain background.
+  const gap = Array.from({ length: 32 }, (_, x) => rgbAt(cropped, x, 32));
+  check(cropped.getSize().width === 704 && cropped.getSize().height === 64 && gap.every((rgb) => rgb.every((v) => v === 0xff)),
+    `clipboard image ${cropped.getSize().width}×${cropped.getSize().height} starts with plain background`);
+  await setAvatarMode('image');
+  await previewReady();
+
+  console.log('\n== Moderator badge (shield / classic wrench)');
+  const setRadio = (name, value) => js(`(() => {
+    const radio = document.querySelector('input[name="${name}"][value="${value}"]');
+    radio.checked = true;
+    radio.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+  const badgePath = () => js("document.getElementById('preview').contentDocument.querySelector('#chat-badges path')?.getAttribute('d').slice(0, 10)");
+  check(await js("document.getElementById('moderator-field').hidden"), 'the badge choice is hidden for viewers');
+  await setRadio('role', 'moderator');
+  await previewReady();
+  check(await js("!document.getElementById('moderator-field').hidden"), 'choosing Moderator shows the badge choice');
+  check(await badgePath() === 'M3 4.998v9', 'the preview shows the current shield by default');
+  await setRadio('moderatorBadge', 'wrench');
+  await previewReady();
+  check(await badgePath() === 'M9.6458914', 'choosing Wrench shows YouTube' + "'" + 's classic badge');
+  await setRadio('moderatorBadge', 'shield');
+  await setRadio('role', 'viewer');
+  await previewReady();
+
   console.log('\n== avatar.js in the page');
   const avatarInfo = await js(`import('../comment/avatar.js').then(async (m) => {
     const decode = async (src) => { const img = new Image(); img.src = src; await img.decode(); return img; };

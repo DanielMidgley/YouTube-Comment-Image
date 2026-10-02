@@ -58,6 +58,13 @@ const CASES = [
   { name: 'light-moderator', row: 17, theme: 'light' },
   { name: 'light-owner-verified', row: 3, variant: 'owner-verified', theme: 'light' },
   { name: 'light-member-timestamp', row: 3, variant: 'member', theme: 'light', timestamp: true },
+  // YouTube's classic moderator badge (its new-shield flag off): the wrench and the classic moderator blue.
+  { name: 'moderator-classic', row: 17, variant: 'moderator-classic' },
+  { name: 'light-moderator-classic-timestamp', row: 17, variant: 'moderator-classic', theme: 'light', timestamp: true },
+  // No avatar: YouTube's row snipped from the avatar's right edge vs the app's hideAvatar export.
+  { name: 'avatar-cropped', row: 1, cropAvatar: true },
+  { name: 'avatar-cropped-emoji', row: 11, cropAvatar: true },
+  { name: 'avatar-cropped-light-owner', row: 3, variant: 'owner-verified', theme: 'light', cropAvatar: true },
 ];
 
 /** Light-theme values of YouTube's hashed colour tokens: the saved stylesheet is the dark build, whose
@@ -71,6 +78,13 @@ function lightTokens() {
     if (match && !(match[1] in tokens)) tokens[match[1]] = match[2];
   }
   return tokens;
+}
+
+/** YouTube's classic moderator icon ('live-chat-badges:moderator'), straight from the saved chat code. */
+function classicModeratorPath() {
+  const js = fs.readFileSync(path.join(SAVED_DIR, 'live_chat_polymer.js.download'), 'utf8');
+  const iconset = js.slice(js.indexOf('<iron-iconset-svg name=' + String.fromCharCode(92) + '"live-chat-badges'));
+  return iconset.match(/<g id=\\"moderator\\"><path d=\\"([^\\]+)\\"/)[1];
 }
 
 /** Serves the saved page in its own session: fonts from our copies, and without YouTube's scripts (they
@@ -95,7 +109,7 @@ function serveSavedPage(ses) {
 }
 
 // ---- Page-side (runs in the saved page) -------------------------------------------------------------
-function prepareCase(spec, lightTokenValues, rowWidth, memberBadgeUrl) {
+function prepareCase(spec, lightTokenValues, rowWidth, memberBadgeUrl, classicModeratorPath) {
   const VERIFIED_PATH = 'M12,2C6.5,2,2,6.5,2,12c0,5.5,4.5,10,10,10s10-4.5,10-10C22,6.5,17.5,2,12,2z M9.8,17.3l-4.2-4.1L7,11.8l2.8,2.7L17,7.4 l1.4,1.4L9.8,17.3z';
   const BADGE = 'yt-live-chat-author-badge-renderer';
   const icon = (d) => `<yt-icon class="style-scope ${BADGE}"><span class="yt-icon-shape style-scope yt-icon ytSpecIconShapeHost"><div style="width: 100%; height: 100%; display: block; fill: currentcolor;"><svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" focusable="false" aria-hidden="true" style="pointer-events: none; display: inherit; width: 100%; height: 100%;"><path d="${d}"></path></svg></div></span></yt-icon>`;
@@ -125,6 +139,14 @@ function prepareCase(spec, lightTokenValues, rowWidth, memberBadgeUrl) {
     setRole('owner');
     row.setAttribute('author-is-owner', '');
     chip.setAttribute('is-highlighted', '');
+  }
+  if (variant === 'moderator-classic') {
+    // What YouTube renders with its new-shield flag off: no new-moderator attributes, and the legacy icon
+    // cloned the way iron-iconset-svg does (_prepareSvgClone in live_chat_polymer.js).
+    chip.removeAttribute('enable-new-moderator-text-color');
+    const moderatorBadge = row.querySelector('#chat-badges yt-live-chat-author-badge-renderer');
+    moderatorBadge.removeAttribute('enable-new-moderator-badge');
+    moderatorBadge.querySelector('yt-icon').innerHTML = `<svg viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet" focusable="false" style="pointer-events: none; display: block; width: 100%; height: 100%;"><g><path d="${classicModeratorPath}"></path></g></svg>`;
   }
   if (variant.endsWith('verified')) {
     chip.setAttribute('is-verified', '');
@@ -166,6 +188,7 @@ function prepareCase(spec, lightTokenValues, rowWidth, memberBadgeUrl) {
     theme: light ? 'light' : 'dark',
     role: row.getAttribute('author-type') || 'viewer',
     verified: chip.hasAttribute('is-verified'),
+    moderatorBadge: variant === 'moderator-classic' ? 'wrench' : 'shield',
     avatarSrc: row.querySelector('#author-photo img').src,
     memberBadgeSrc,
     timestamp: spec.timestamp ? row.querySelector('#timestamp').textContent : null,
@@ -180,7 +203,8 @@ async function settleRow() {
   await document.fonts.ready;
   await Promise.all([...row.querySelectorAll('img')].map((img) => img.decode().catch(() => {})));
   const r = row.getBoundingClientRect();
-  return { x: r.left, y: r.top, width: r.width, height: r.height };
+  const avatarRight = row.querySelector('#author-photo').getBoundingClientRect().right;
+  return { x: r.left, y: r.top, width: r.width, height: r.height, avatarRight };
 }
 
 // ---- Harness ---------------------------------------------------------------------------------------
@@ -194,7 +218,7 @@ async function openSavedPage() {
   });
   await win.loadURL(appUrl(`${SAVED_FOLDER}/saved_resource.html`));
   const run = (fn, ...fnArgs) => win.webContents.executeJavaScript(`(${fn})(...${JSON.stringify(fnArgs)})`, true);
-  return { win, run };
+  return { win, run, classicModeratorPath: classicModeratorPath() };
 }
 
 async function captureYouTube(page, spec, scale, tokens) {
@@ -202,10 +226,13 @@ async function captureYouTube(page, spec, scale, tokens) {
   await applyCaptureScale(page.win.webContents, scale); // lay out at the scale it is captured at
   // Member badges come pre-sized like YouTube serves them: the first of 16/32px at least 16 × scale wide.
   const memberBadgeUrl = appUrl(`test/visual/fixtures/member-badge-${scale <= 1 ? 16 : 32}.png`);
-  const props = await page.run(prepareCase, spec, tokens, rowWidth, memberBadgeUrl);
-  const rect = await page.run(settleRow);
+  const props = await page.run(prepareCase, spec, tokens, rowWidth, memberBadgeUrl, page.classicModeratorPath);
+  const { avatarRight, ...row } = await page.run(settleRow);
+  // A plain crop of the real row from the avatar's right edge: what snipping the avatar out gives.
+  const rect = spec.cropAvatar ? { ...row, x: avatarRight, width: row.x + row.width - avatarRight } : row;
   const { png } = await captureRegion(page.win.webContents, rect, scale);
-  return { png, props: { ...props, rowWidth: rect.width, margin: 0 } };
+  const avatar = spec.cropAvatar ? { hideAvatar: true, avatarSrc: null } : {};
+  return { png, props: { ...props, ...avatar, rowWidth: row.width, margin: 0 } };
 }
 
 function compare(youtubePng, appPng) {

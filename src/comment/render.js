@@ -32,13 +32,16 @@ export function messageHtml(message, { emojiOverrides } = {}) {
 export function rowHtml(props) {
   const role = ROLES.includes(props.role) ? props.role : 'viewer';
   const authorType = role === 'viewer' ? '' : role;
+  const moderatorBadge = props.moderatorBadge === 'wrench' ? 'wrench' : 'shield';
   const { chip: chipBadges, chat: chatBadges } = badgeHtml({
     role,
     verified: Boolean(props.verified),
     memberBadgeSrc: props.memberBadgeSrc ?? null,
+    moderatorBadge,
   });
   const chipAttrs = [
-    'enable-new-moderator-text-color=""',
+    // YouTube's new-shield flag also sets the newer moderator name colour (see badges.js).
+    moderatorBadge === 'shield' ? 'enable-new-moderator-text-color=""' : '',
     'enable-improved-visibility-style=""',
     role === 'owner' ? 'is-highlighted=""' : '',
     props.verified ? 'is-verified=""' : '',

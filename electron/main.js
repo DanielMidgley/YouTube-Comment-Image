@@ -18,6 +18,7 @@ const HIDDEN = process.env.YT_COMMENT_HIDDEN === '1';
 const LIMITS = { name: 200, message: 1000, timestamp: 40, url: 2048, dataUrl: 5 * 1024 * 1024 };
 const THEMES = ['dark', 'light'];
 const ROLES = ['viewer', 'member', 'moderator', 'owner'];
+const MODERATOR_BADGES = ['shield', 'wrench'];
 
 let editorWindow = null;
 let lastSaveDir = null;
@@ -242,13 +243,17 @@ function slug(name) {
 /** Rebuilds RenderProps from untrusted input: known keys only, strings capped, numbers clamped. */
 function sanitizeProps(raw) {
   if (!isPlainObject(raw)) throw new Error('Invalid comment: expected an object.');
+  // A cropped-out avatar (hideAvatar) needs no image.
+  const hideAvatar = raw.hideAvatar === undefined ? false : boolean(raw.hideAvatar, 'hideAvatar');
   const props = {
     name: text(raw.name, 'name', LIMITS.name),
     message: text(raw.message, 'message', LIMITS.message),
     theme: oneOf(raw.theme, THEMES, 'theme'),
     role: oneOf(raw.role, ROLES, 'role'),
     verified: boolean(raw.verified, 'verified'),
-    avatarSrc: imageUrl(raw.avatarSrc, 'avatarSrc'),
+    moderatorBadge: raw.moderatorBadge === undefined ? 'shield' : oneOf(raw.moderatorBadge, MODERATOR_BADGES, 'moderatorBadge'),
+    hideAvatar,
+    avatarSrc: hideAvatar && raw.avatarSrc == null ? null : imageUrl(raw.avatarSrc, 'avatarSrc'),
     memberBadgeSrc: raw.memberBadgeSrc == null ? null : imageUrl(raw.memberBadgeSrc, 'memberBadgeSrc'),
     timestamp: raw.timestamp == null ? null : text(raw.timestamp, 'timestamp', LIMITS.timestamp),
     rowWidth: clamp(raw.rowWidth, 200, 1200, 'rowWidth'),

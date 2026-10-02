@@ -23,10 +23,11 @@ would otherwise make Electron run as plain Node.
   preview says so).
 - **Avatar**: a YouTube-style default avatar (a coloured square with the first letter, shown as a circle),
   or any picture: choose a file or drop it on the window. Like YouTube, the app draws avatars from a 32 px
-  image at up to 1.33× scale and from a 64 px one above that.
+  image at up to 1.33× scale and from a 64 px one above that. **None** crops the avatar out, as if your
+  snip started just right of it: the image begins where the avatar ended and the line breaks don't change.
 - **Role**: viewer, member (green name, plus your channel's badge image if you add one; YouTube has no
-  stock member badge), moderator (blue name with the shield badge) or owner (highlighted name), plus a
-  verified tick.
+  stock member badge), moderator (blue name with the shield badge, or YouTube's classic wrench badge with
+  its older blue) or owner (highlighted name), plus a verified tick.
 - **Theme**: dark or light chat.
 - **Timestamp**: hidden by default, as in YouTube's live chat; it follows the clock until you edit it.
 - **Comment width**: line breaks depend on how wide the chat is. YouTube's standard chat gives 385 px rows;
@@ -54,10 +55,10 @@ The comment is real YouTube markup styled by YouTube's own CSS, not an imitation
 
 - `npm test`: unit tests (emoji handling, HTML escaping, the generated markup).
 - `npm run test:visual`: the golden test. It opens the saved YouTube live-chat page (`yt_example_page/`,
-  not included in the repository), screenshots real chat rows (plus owner, member, verified, timestamp and
-  light-theme variants made from them), renders the same comments with the app and compares the images
-  pixel by pixel. All 80 cases are identical at 1×, 1.25×, 1.5× and 2×. It skips itself when the saved
-  page isn't present.
+  not included in the repository), screenshots real chat rows (plus owner, member, verified, timestamp,
+  light-theme, classic-moderator and cropped-avatar variants made from them), renders the same comments
+  with the app and compares the images pixel by pixel. All 100 cases are identical at 1×, 1.25×, 1.5×
+  and 2×. It skips itself when the saved page isn't present.
 - `node scripts/electron.js test/smoke/capture.js`: the capture pipeline (sizes at every scale, queueing,
   timeouts, crash recovery).
 - `node scripts/electron.js test/smoke/app.js`: the whole app, run hidden: editing, saving, copying,

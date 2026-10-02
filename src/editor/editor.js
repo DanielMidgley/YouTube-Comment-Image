@@ -23,10 +23,11 @@ const STAGE_TIMEOUT_MS = 8000;
 const DEFAULT_STATE = {
   name: '@YourChannel',
   message: 'This stream is amazing 🔥',
-  avatarMode: 'default', // 'default' (letter avatar) | 'image'
+  avatarMode: 'default', // 'default' (letter avatar) | 'image' | 'none' (cropped out of the export)
   avatarColor: 'auto', // 'auto' | one of DEFAULT_AVATAR_COLORS
   avatarImage: null, // uploaded avatar: { 32: dataUrl, 64: dataUrl }
   role: 'viewer',
+  moderatorBadge: 'shield', // 'shield' (current) | 'wrench' (YouTube's classic moderator badge)
   verified: false,
   badgeImage: null, // uploaded member badge: { 16: dataUrl, 32: dataUrl }
   theme: 'dark',
@@ -83,11 +84,12 @@ function isValid(key, value) {
   switch (key) {
     case 'name': case 'message': case 'timestamp': return typeof value === 'string';
     case 'verified': case 'timestampOn': case 'timestampAuto': return typeof value === 'boolean';
-    case 'avatarMode': return value === 'default' || value === 'image';
+    case 'avatarMode': return ['default', 'image', 'none'].includes(value);
     case 'avatarColor': return value === 'auto' || DEFAULT_AVATAR_COLORS.includes(value);
     case 'avatarImage': return isDataUrlSet(value, [32, 64]);
     case 'badgeImage': return isDataUrlSet(value, [16, 32]);
     case 'role': return ['viewer', 'member', 'moderator', 'owner'].includes(value);
+    case 'moderatorBadge': return value === 'shield' || value === 'wrench';
     case 'theme': return value === 'dark' || value === 'light';
     case 'rowWidth': return Number.isFinite(value) && value >= ROW_WIDTH.min && value <= ROW_WIDTH.max;
     case 'margin': return Number.isFinite(value) && value >= MARGIN.min && value <= MARGIN.max;
@@ -150,15 +152,18 @@ function defaultAvatar(name, color, size) {
 async function buildProps(scale) {
   const s = { ...state }; // a snapshot: the state may change while the avatar is drawn
   const color = s.avatarColor === 'auto' ? pickAvatarColor(s.name) : s.avatarColor;
-  const avatarSrc = s.avatarMode === 'image' && s.avatarImage
-    ? s.avatarImage[avatarSizeFor(scale)]
-    : await defaultAvatar(s.name, color, avatarSizeFor(scale));
+  const hideAvatar = s.avatarMode === 'none';
+  let avatarSrc = null;
+  if (s.avatarMode === 'image' && s.avatarImage) avatarSrc = s.avatarImage[avatarSizeFor(scale)];
+  else if (!hideAvatar) avatarSrc = await defaultAvatar(s.name, color, avatarSizeFor(scale));
   return {
     name: s.name,
     message: s.message.replace(/\r\n?|\n/g, ' '),
     theme: s.theme,
     role: s.role,
+    moderatorBadge: s.moderatorBadge,
     verified: s.verified,
+    hideAvatar,
     avatarSrc,
     memberBadgeSrc: s.role === 'member' && s.badgeImage ? s.badgeImage[badgeSizeFor(scale)] : null,
     timestamp: s.timestampOn && s.timestamp ? s.timestamp : null,
@@ -327,6 +332,7 @@ function writeForm() {
   setRadio('avatarMode', state.avatarMode);
   setRadio('avatarColor', state.avatarColor);
   setRadio('role', state.role);
+  setRadio('moderatorBadge', state.moderatorBadge);
   $('verified').checked = state.verified;
   setRadio('theme', state.theme);
   $('timestamp-on').checked = state.timestampOn;
@@ -340,8 +346,10 @@ function writeForm() {
 function syncUi() {
   $('avatar-default').hidden = state.avatarMode !== 'default';
   $('avatar-image').hidden = state.avatarMode !== 'image';
+  $('avatar-none').hidden = state.avatarMode !== 'none';
   showThumb($('avatar-thumb'), $('avatar-remove'), state.avatarImage?.[64]);
   $('badge-field').hidden = state.role !== 'member';
+  $('moderator-field').hidden = state.role !== 'moderator';
   showThumb($('badge-thumb'), $('badge-remove'), state.badgeImage?.[32]);
   autoSwatch?.style.setProperty('--swatch', pickAvatarColor(state.name));
 
@@ -380,6 +388,7 @@ function onFormEvent(event) {
     case 'avatarMode': state.avatarMode = target.value; break;
     case 'avatarColor': state.avatarColor = target.value; break;
     case 'role': state.role = target.value; break;
+    case 'moderatorBadge': state.moderatorBadge = target.value; break;
     case 'verified': state.verified = target.checked; break;
     case 'theme': state.theme = target.value; break;
     case 'timestampOn': state.timestampOn = target.checked; break;

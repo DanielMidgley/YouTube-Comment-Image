@@ -38,6 +38,12 @@ yt-live-chat-renderer {
   padding: var(--stage-margin, 0px);
 }
 
+/* "No avatar": the avatar is cropped out of the capture (stage.js). It is hidden in place, so the layout and
+   every line break stay exactly YouTube's, and any margin left of the crop line is plain chat background. */
+html[data-hide-avatar] #author-photo.yt-live-chat-text-message-renderer {
+  visibility: hidden;
+}
+
 /* Shown only if an emoji image cannot be downloaded (offline): the emoji as text in the same 24px box. */
 .emoji-fallback {
   display: inline-block;

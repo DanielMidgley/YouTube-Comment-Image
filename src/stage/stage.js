@@ -27,9 +27,9 @@ async function loadFonts(row) {
 }
 
 /** Waits for every image; emoji that fail to download are swapped for text so the row still renders. */
-async function loadImages(row) {
+async function loadImages(row, { skip = null } = {}) {
   const warnings = [];
-  await Promise.all([...row.querySelectorAll('img')].map(async (img) => {
+  await Promise.all([...row.querySelectorAll('img')].filter((img) => img !== skip).map(async (img) => {
     try {
       await withTimeout(img.decode(), IMAGE_TIMEOUT_MS);
     } catch {
@@ -49,21 +49,33 @@ async function loadImages(row) {
 
 async function render(props = {}) {
   const dark = props.theme !== 'light';
+  const hideAvatar = props.hideAvatar === true;
+  const margin = clamp(props.margin, 0, 200, 0);
   root.toggleAttribute('dark', dark);
   app.toggleAttribute('dark', dark);
+  root.toggleAttribute('data-hide-avatar', hideAvatar);
   chat.toggleAttribute('hide-timestamps', !props.timestamp);
   root.style.setProperty('--stage-row-width', `${clamp(props.rowWidth, 120, 2000, 385)}px`);
-  root.style.setProperty('--stage-margin', `${clamp(props.margin, 0, 200, 0)}px`);
+  root.style.setProperty('--stage-margin', `${margin}px`);
 
   items.innerHTML = rowHtml(props);
   const row = items.firstElementChild;
+  const avatar = row.querySelector('#author-photo');
   await loadFonts(row);
-  const warnings = await loadImages(row);
+  const warnings = await loadImages(row, { skip: hideAvatar ? avatar.querySelector('img') : null });
   await nextFrame();
   await nextFrame();
 
   const box = chat.getBoundingClientRect();
-  return { x: box.x, y: box.y, width: box.width, height: box.height, warnings };
+  let { x, width } = box;
+  if (hideAvatar) {
+    // Crop the avatar out, as a snip starting just right of it would: the row keeps YouTube's layout (and
+    // so every line break), and the capture starts at the avatar's right edge, less the margin.
+    const cut = avatar.getBoundingClientRect().right - margin - x;
+    x += cut;
+    width -= cut;
+  }
+  return { x, y: box.y, width, height: box.height, warnings };
 }
 
 window.stage = { render };

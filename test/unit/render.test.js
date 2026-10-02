@@ -50,6 +50,19 @@ test('roles set author-type, the name class and badges like YouTube', () => {
   assert.ok(rowHtml({ ...base, role: 'nonsense' }).includes('author-type=""'), 'unknown roles fall back to viewer');
 });
 
+test("moderator badge: the current shield, or YouTube's classic wrench with the classic colours", () => {
+  const current = rowHtml({ ...base, role: 'moderator' });
+  assert.ok(current.includes('enable-new-moderator-text-color=""') && current.includes('enable-new-moderator-badge=""'));
+  assert.ok(current.includes('viewBox="0 0 24 24"') && current.includes('d="M3 4.998v9.857'));
+
+  const classic = rowHtml({ ...base, role: 'moderator', moderatorBadge: 'wrench' });
+  assert.ok(!classic.includes('enable-new-moderator-text-color'), 'the chip loses the new moderator colour');
+  assert.ok(!classic.includes('enable-new-moderator-badge'), 'the badge loses the new moderator colour');
+  assert.ok(classic.includes('viewBox="0 0 16 16" preserveAspectRatio="xMidYMid meet"') && classic.includes('d="M9.64589146,7.05569719'));
+
+  assert.ok(rowHtml({ ...base, role: 'moderator', moderatorBadge: 'bogus' }).includes('d="M3 4.998v9.857'), 'unknown values fall back to the shield');
+});
+
 test('messages: emoji become YouTube emoji images, line breaks become spaces', () => {
   const html = messageHtml('hi 😆 & bye');
   assert.ok(html.startsWith('hi <img class="small-emoji emoji yt-formatted-string style-scope yt-live-chat-text-message-renderer" src="https://fonts.gstatic.com/s/e/notoemoji/15.1/1f606/72.png" alt="😆" id="emoji-0">'));

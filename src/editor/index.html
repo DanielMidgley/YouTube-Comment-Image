@@ -30,6 +30,7 @@
         <div class="segmented">
           <label><input type="radio" name="avatarMode" value="default"><span>Letter</span></label>
           <label><input type="radio" name="avatarMode" value="image"><span>Image</span></label>
+          <label><input type="radio" name="avatarMode" value="none"><span>None</span></label>
         </div>
 
         <div id="avatar-default" class="subfield">
@@ -43,6 +44,10 @@
           <button type="button" id="avatar-remove" class="button ghost" hidden>Remove</button>
           <p class="hint">Square crop from the centre. You can also drop an image anywhere on the window.</p>
         </div>
+
+        <div id="avatar-none" class="subfield" hidden>
+          <p class="hint">The avatar is cropped out, as if your snip started just right of it. Line breaks stay exactly as on YouTube.</p>
+        </div>
       </fieldset>
 
       <fieldset class="field">
@@ -52,6 +57,14 @@
           <label><input type="radio" name="role" value="member"><span>Member</span></label>
           <label><input type="radio" name="role" value="moderator"><span>Moderator</span></label>
           <label><input type="radio" name="role" value="owner"><span>Owner</span></label>
+        </div>
+
+        <div id="moderator-field" class="subfield" hidden>
+          <div class="segmented" role="radiogroup" aria-label="Moderator badge">
+            <label><input type="radio" name="moderatorBadge" value="shield"><span>Shield (current)</span></label>
+            <label><input type="radio" name="moderatorBadge" value="wrench"><span>Wrench (classic)</span></label>
+          </div>
+          <p class="hint">The wrench is YouTube's older moderator badge. With it the name takes the older moderator blue, as it did on YouTube.</p>
         </div>
       </fieldset>
 
