@@ -15,8 +15,11 @@ import { PNG } from 'pngjs';
 import { APP_ROOT, HOST, SCHEME, appUrl, fileResponse, registerAppScheme, resolveInside } from '../../electron/protocol.js';
 import { applyCaptureScale, captureComment, captureRegion, disposeCapture } from '../../electron/capture.js';
 
-const SAVED_FOLDER = 'yt_example_page/Periphery - The Way The News Goes (DAY 1 TRACK VOCALS WITH ME) - YouTube_files';
-const SAVED_DIR = path.join(APP_ROOT, SAVED_FOLDER);
+// A YouTube watch page saved by a browser as "Webpage, Complete" into yt_example_page/ (git-ignored): the
+// live chat's document is one of the saved_resource*.html files in the page's "<title>_files" folder, beside
+// the chat stylesheet it links and YouTube's chat script.
+const SAVED_PAGES = 'yt_example_page';
+const SAVED = findSavedChat(path.join(APP_ROOT, SAVED_PAGES));
 const OUT_DIR = path.join(APP_ROOT, 'test', 'visual', 'out');
 const FONTS_DIR = path.join(APP_ROOT, 'src', 'assets', 'fonts');
 const SCROLLBAR = 15; // the chat's item list always shows a 15px scrollbar beside the rows
@@ -35,7 +38,8 @@ const option = (name) => { const i = args.indexOf(`--${name}`); return i >= 0 ? 
 const ONLY = option('only');
 const SCALES = (option('scales') ?? '1,1.25,1.5,2').split(',').map(Number);
 
-// Each case starts from a real saved row (`row`: 1-based index, or `author` name) and optionally applies a
+// Each case starts from a real saved row (`row`: 1-based index, or `displayName`: the first row whose author
+// shows a display name rather than an @handle, as some older accounts do) and optionally applies a
 // variant. `chat` is the chat width in CSS px (rows are SCROLLBAR px narrower); 400 is YouTube's default.
 const CASES = [
   { name: 'two-lines', row: 1 },
@@ -45,7 +49,7 @@ const CASES = [
   { name: 'emoji-in-text', row: 11 },
   { name: 'two-emoji', row: 31 },
   { name: 'moderator', row: 17 },
-  { name: 'display-name', author: 'Thijs Florian Wahler' },
+  { name: 'display-name', displayName: true },
   { name: 'user-width-415', row: 13, chat: 415 },
   { name: 'narrow-340', row: 4, chat: 340 },
   { name: 'member', row: 3, variant: 'member' },
@@ -70,7 +74,7 @@ const CASES = [
 /** Light-theme values of YouTube's hashed colour tokens: the saved stylesheet is the dark build, whose
     :root block declares every token's light value first and then overrides it with the dark one. */
 function lightTokens() {
-  const css = fs.readFileSync(path.join(SAVED_DIR, 'rs=AGKMywECJO5OqBvqpt8bwcr4Bsn08kg5sg'), 'utf8');
+  const css = fs.readFileSync(SAVED.css, 'utf8');
   const blocks = [...css.matchAll(/:root\{([^}]*)\}/g)].map((m) => m[1]);
   const tokens = {};
   for (const declaration of blocks.sort((a, b) => b.length - a.length)[0].split(';')) {
@@ -81,8 +85,22 @@ function lightTokens() {
 }
 
 /** YouTube's classic moderator icon ('live-chat-badges:moderator'), straight from the saved chat code. */
+function findSavedChat(root) {
+  if (!fs.existsSync(root)) return null;
+  for (const folder of fs.readdirSync(root).filter((name) => name.endsWith('_files'))) {
+    const dir = path.join(root, folder);
+    for (const file of fs.readdirSync(dir).filter((name) => /^saved_resource.*\.html$/.test(name))) {
+      const html = fs.readFileSync(path.join(dir, file), 'utf8');
+      if (!html.includes('<yt-live-chat-text-message-renderer')) continue;
+      const css = html.match(/href="\.\/(rs=[\w-]+)"/)?.[1];
+      if (css) return { folder, file, css: path.join(dir, css), js: path.join(dir, 'live_chat_polymer.js.download') };
+    }
+  }
+  return null;
+}
+
 function classicModeratorPath() {
-  const js = fs.readFileSync(path.join(SAVED_DIR, 'live_chat_polymer.js.download'), 'utf8');
+  const js = fs.readFileSync(SAVED.js, 'utf8');
   const iconset = js.slice(js.indexOf('<iron-iconset-svg name=' + String.fromCharCode(92) + '"live-chat-badges'));
   return iconset.match(/<g id=\\"moderator\\"><path d=\\"([^\\]+)\\"/)[1];
 }
@@ -98,7 +116,7 @@ function serveSavedPage(ses) {
     }
     const filePath = host === HOST && resolveInside(APP_ROOT, pathname);
     if (!filePath) return new Response('', { status: 404 });
-    if (path.basename(filePath) === 'saved_resource.html') {
+    if (path.basename(filePath) === SAVED.file) {
       const html = fs.readFileSync(filePath, 'utf8').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
       return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8' } });
     }
@@ -118,8 +136,8 @@ function prepareCase(spec, lightTokenValues, rowWidth, memberBadgeUrl, classicMo
   const html = document.documentElement;
   const items = document.querySelector('#items');
   window.__rows = window.__rows || [...items.querySelectorAll(':scope > yt-live-chat-text-message-renderer')];
-  const source = spec.author
-    ? window.__rows.find((r) => r.querySelector('#author-name').firstChild.textContent === spec.author)
+  const source = spec.displayName
+    ? window.__rows.find((r) => !r.querySelector('#author-name').firstChild.textContent.startsWith('@'))
     : window.__rows[spec.row - 1];
   const row = source.cloneNode(true);
   const chip = row.querySelector('yt-live-chat-author-chip');
@@ -216,7 +234,7 @@ async function openSavedPage() {
     paintWhenInitiallyHidden: true,
     webPreferences: { session: ses, sandbox: true, contextIsolation: true, backgroundThrottling: false },
   });
-  await win.loadURL(appUrl(`${SAVED_FOLDER}/saved_resource.html`));
+  await win.loadURL(appUrl(`${SAVED_PAGES}/${SAVED.folder}/${SAVED.file}`));
   const run = (fn, ...fnArgs) => win.webContents.executeJavaScript(`(${fn})(...${JSON.stringify(fnArgs)})`, true);
   return { win, run, classicModeratorPath: classicModeratorPath() };
 }
@@ -249,8 +267,8 @@ function compare(youtubePng, appPng) {
 }
 
 async function main() {
-  if (!fs.existsSync(path.join(SAVED_DIR, 'saved_resource.html'))) {
-    console.log(`SKIP: the saved YouTube page is not present (${SAVED_FOLDER}).`);
+  if (!SAVED) {
+    console.log(`SKIP: no saved YouTube live-chat page under ${SAVED_PAGES}/ (see README: Tests).`);
     return 0;
   }
   fs.mkdirSync(OUT_DIR, { recursive: true });
