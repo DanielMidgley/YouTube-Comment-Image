@@ -14,6 +14,11 @@ Two exports, made at 2× and shown at half size:
 It is meant for mock-ups, thumbnails, video edits and demos. It is not affiliated with or endorsed by
 YouTube or Google, and a comment made with it should not be presented as something a real person said.
 
+> **Disclaimer: this project is completely vibecoded.** All of the code, tests and documentation were
+> written by Claude Code from plain-English requests; I directed it and checked the results, but I
+> have not reviewed the code line by line. It works for me, and the tests pass, but treat it with the
+> care that deserves: there may be bugs which I haven't noticed.
+
 ## Running it
 
 Built and tested on Windows 11: the export matches a Windows screenshot, ClearType text and all. It should
