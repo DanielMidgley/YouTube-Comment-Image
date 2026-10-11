@@ -19,9 +19,11 @@ contextBridge.exposeInMainWorld('ytComment', {
   capture: (props, opts) => ipcRenderer.invoke('comment:capture', props, opts),
   /** Asks where to save the MP4 and writes it → { canceled, filePath }. */
   saveVideo: (bytes, info) => ipcRenderer.invoke('comment:save-video', bytes, info),
+  /** Asks for a screenshot to read a comment from → { canceled, name, bytes }. */
+  openScreenshot: () => ipcRenderer.invoke('screenshot:open'),
   /** Scale factor of the display the editor window is on. */
   getDisplayScale: () => ipcRenderer.invoke('display:get-scale'),
   onDisplayScaleChange: (callback) => subscribe('display:scale-changed', callback),
-  /** 'save' | 'copy' | 'video', from the application menu and its shortcuts. */
+  /** 'save' | 'copy' | 'video' | 'read-screenshot', from the application menu and its shortcuts. */
   onMenuCommand: (callback) => subscribe('menu:command', callback),
 });

@@ -2,3 +2,5 @@
 node_modules/
 dist/
 test/visual/out/
+test/screenshots/corpus/
+test/screenshots/corpus-real/

@@ -1,0 +1,1515 @@
+[
+  {
+    "id": "dark-viewer-letter-1x",
+    "file": "dark-viewer-letter-1x.png",
+    "width": 400,
+    "height": 32,
+    "scale": 1,
+    "pixelScale": 1,
+    "transform": { "jpegQuality": null, "pad": null, "resample": null, "stack": null, "avatarCut": null },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "@quietotter42",
+          "message": "what song is this?",
+          "timestamp": null,
+          "theme": "dark",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": null,
+          "avatar": "letter"
+        },
+        "props": {
+          "name": "@quietotter42",
+          "message": "what song is this?",
+          "theme": "dark",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "letter:#0097A7:32px",
+          "memberBadgeSrc": null,
+          "timestamp": null,
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": 0, "width": 400, "height": 32 },
+          "avatar": { "x": 24, "y": 4, "width": 24, "height": 24 },
+          "timestamp": null,
+          "nameChip": { "x": 64, "y": 7, "width": 89.47, "height": 17 },
+          "nameText": { "x": 64, "y": 7, "width": 89.47, "height": 17 },
+          "badges": [],
+          "message": { "x": 161.47, "y": 7, "width": 111.83, "height": 17 },
+          "lines": [{ "box": { "x": 161.47, "y": 7, "width": 111.83, "height": 17 }, "text": "what song is this?" }],
+          "emoji": []
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:dark",
+      "role:viewer",
+      "scale:1",
+      "verified:no",
+      "timestamp:none",
+      "avatar:letter",
+      "width:400",
+      "margin:0",
+      "transform:none",
+      "emoji:none",
+      "lines:1",
+      "name:handle"
+    ],
+    "notes": []
+  },
+  {
+    "id": "light-viewer-image-clock-1_25x",
+    "file": "light-viewer-image-clock-1_25x.png",
+    "width": 500,
+    "height": 40,
+    "scale": 1.25,
+    "pixelScale": 1.25,
+    "transform": { "jpegQuality": null, "pad": null, "resample": null, "stack": null, "avatarCut": null },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "@PixelGecko",
+          "message": "greetings from Portugal!",
+          "timestamp": "2:41\u202fPM",
+          "theme": "light",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": null,
+          "avatar": "image"
+        },
+        "props": {
+          "name": "@PixelGecko",
+          "message": "greetings from Portugal!",
+          "theme": "light",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "image:portrait-11:32px",
+          "memberBadgeSrc": null,
+          "timestamp": "2:41\u202fPM",
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": 0, "width": 500, "height": 40 },
+          "avatar": { "x": 30, "y": 5, "width": 30, "height": 30 },
+          "timestamp": { "x": 80, "y": 13.5, "width": 48.91, "height": 16 },
+          "nameChip": { "x": 138.91, "y": 9.5, "width": 103.28, "height": 21 },
+          "nameText": { "x": 138.91, "y": 9.5, "width": 103.28, "height": 21 },
+          "badges": [],
+          "message": { "x": 252.19, "y": 9.5, "width": 189.27, "height": 21 },
+          "lines": [
+            {
+              "box": { "x": 252.19, "y": 9.5, "width": 189.27, "height": 21 },
+              "text": "greetings from Portugal!"
+            }
+          ],
+          "emoji": []
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:light",
+      "role:viewer",
+      "scale:1.25",
+      "verified:no",
+      "timestamp:clock",
+      "avatar:image",
+      "width:400",
+      "margin:0",
+      "transform:none",
+      "emoji:none",
+      "lines:1",
+      "name:handle"
+    ],
+    "notes": []
+  },
+  {
+    "id": "dark-member-badge-1_5x",
+    "file": "dark-member-badge-1_5x.png",
+    "width": 600,
+    "height": 72,
+    "scale": 1.5,
+    "pixelScale": 1.5,
+    "transform": { "jpegQuality": null, "pad": null, "resample": null, "stack": null, "avatarCut": null },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "@vinyl_moose",
+          "message": "been a member for 2 years now, best 5$ I spend every month",
+          "timestamp": null,
+          "theme": "dark",
+          "role": "member",
+          "verified": false,
+          "moderatorBadge": null,
+          "avatar": "letter"
+        },
+        "props": {
+          "name": "@vinyl_moose",
+          "message": "been a member for 2 years now, best 5$ I spend every month",
+          "theme": "dark",
+          "role": "member",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "letter:#512DA8:64px",
+          "memberBadgeSrc": "member-badge-32.png",
+          "timestamp": null,
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": 0, "width": 600, "height": 72 },
+          "avatar": { "x": 36, "y": 6, "width": 36, "height": 36 },
+          "timestamp": null,
+          "nameChip": { "x": 96, "y": 8, "width": 135.52, "height": 25 },
+          "nameText": { "x": 96, "y": 8, "width": 135.52, "height": 25 },
+          "badges": [{ "type": "member", "box": { "x": 234.52, "y": 9.19, "width": 24, "height": 24 } }],
+          "message": { "x": 96, "y": 8, "width": 424.17, "height": 55 },
+          "lines": [
+            {
+              "box": { "x": 270.52, "y": 8, "width": 249.66, "height": 25 },
+              "text": "been a member for 2 years"
+            },
+            {
+              "box": { "x": 96, "y": 38, "width": 310.47, "height": 25 },
+              "text": "now, best 5$ I spend every month"
+            }
+          ],
+          "emoji": []
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:dark",
+      "role:member-badge",
+      "scale:1.5",
+      "verified:no",
+      "timestamp:none",
+      "avatar:letter",
+      "width:400",
+      "margin:0",
+      "transform:none",
+      "emoji:none",
+      "lines:2",
+      "name:handle"
+    ],
+    "notes": []
+  },
+  {
+    "id": "light-member-no-badge-2x",
+    "file": "light-member-no-badge-2x.png",
+    "width": 800,
+    "height": 64,
+    "scale": 2,
+    "pixelScale": 2,
+    "transform": { "jpegQuality": null, "pad": null, "resample": null, "stack": null, "avatarCut": null },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "@lunar.biscuit",
+          "message": "happy birthday to the drummer!",
+          "timestamp": null,
+          "theme": "light",
+          "role": "member",
+          "verified": false,
+          "moderatorBadge": null,
+          "avatar": "letter"
+        },
+        "props": {
+          "name": "@lunar.biscuit",
+          "message": "happy birthday to the drummer!",
+          "theme": "light",
+          "role": "member",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "letter:#E64A19:64px",
+          "memberBadgeSrc": null,
+          "timestamp": null,
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": 0, "width": 800, "height": 64 },
+          "avatar": { "x": 48, "y": 8, "width": 48, "height": 48 },
+          "timestamp": null,
+          "nameChip": { "x": 128, "y": 15, "width": 178.19, "height": 34 },
+          "nameText": { "x": 128, "y": 15, "width": 178.19, "height": 34 },
+          "badges": [],
+          "message": { "x": 322.19, "y": 15, "width": 390, "height": 34 },
+          "lines": [
+            {
+              "box": { "x": 322.19, "y": 15, "width": 390, "height": 34 },
+              "text": "happy birthday to the drummer!"
+            }
+          ],
+          "emoji": []
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:light",
+      "role:member",
+      "scale:2",
+      "verified:no",
+      "timestamp:none",
+      "avatar:letter",
+      "width:400",
+      "margin:0",
+      "transform:none",
+      "emoji:none",
+      "lines:1",
+      "name:handle"
+    ],
+    "notes": []
+  },
+  {
+    "id": "dark-moderator-verified-1x",
+    "file": "dark-moderator-verified-1x.png",
+    "width": 400,
+    "height": 48,
+    "scale": 1,
+    "pixelScale": 1,
+    "transform": { "jpegQuality": null, "pad": null, "resample": null, "stack": null, "avatarCut": null },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "@IronLlama_Mod",
+          "message": "please keep chat friendly :)",
+          "timestamp": null,
+          "theme": "dark",
+          "role": "moderator",
+          "verified": true,
+          "moderatorBadge": "shield",
+          "avatar": "letter"
+        },
+        "props": {
+          "name": "@IronLlama_Mod",
+          "message": "please keep chat friendly :)",
+          "theme": "dark",
+          "role": "moderator",
+          "verified": true,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "letter:#5D4037:32px",
+          "memberBadgeSrc": null,
+          "timestamp": null,
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": 0, "width": 400, "height": 48 },
+          "avatar": { "x": 24, "y": 4, "width": 24, "height": 24 },
+          "timestamp": null,
+          "nameChip": { "x": 64, "y": 5, "width": 125.8, "height": 17 },
+          "nameText": { "x": 64, "y": 5, "width": 109.8, "height": 17 },
+          "badges": [
+            { "type": "verified", "box": { "x": 175.8, "y": 5.8, "width": 16, "height": 16 } },
+            { "type": "moderator", "box": { "x": 191.8, "y": 5.8, "width": 16, "height": 16 } }
+          ],
+          "message": { "x": 64, "y": 5, "width": 306.17, "height": 37 },
+          "lines": [
+            {
+              "box": { "x": 215.8, "y": 5, "width": 154.38, "height": 17 },
+              "text": "please keep chat friendly"
+            },
+            { "box": { "x": 64, "y": 25, "width": 8.27, "height": 17 }, "text": ":)" }
+          ],
+          "emoji": []
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:dark",
+      "role:moderator-shield",
+      "scale:1",
+      "verified:yes",
+      "timestamp:none",
+      "avatar:letter",
+      "width:400",
+      "margin:0",
+      "transform:none",
+      "emoji:none",
+      "lines:2",
+      "name:handle"
+    ],
+    "notes": []
+  },
+  {
+    "id": "light-moderator-wrench-clock12-1_25x",
+    "file": "light-moderator-wrench-clock12-1_25x.png",
+    "width": 500,
+    "height": 60,
+    "scale": 1.25,
+    "pixelScale": 1.25,
+    "transform": { "jpegQuality": null, "pad": null, "resample": null, "stack": null, "avatarCut": null },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "@sleepy_kettle",
+          "message": "reminder: no spoilers in chat",
+          "timestamp": "12:03\u202fAM",
+          "theme": "light",
+          "role": "moderator",
+          "verified": false,
+          "moderatorBadge": "wrench",
+          "avatar": "letter"
+        },
+        "props": {
+          "name": "@sleepy_kettle",
+          "message": "reminder: no spoilers in chat",
+          "theme": "light",
+          "role": "moderator",
+          "verified": false,
+          "moderatorBadge": "wrench",
+          "hideAvatar": false,
+          "avatarSrc": "letter:#5D4037:32px",
+          "memberBadgeSrc": null,
+          "timestamp": "12:03\u202fAM",
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": 0, "width": 500, "height": 60 },
+          "avatar": { "x": 30, "y": 5, "width": 30, "height": 30 },
+          "timestamp": { "x": 80, "y": 11, "width": 56.92, "height": 16 },
+          "nameChip": { "x": 146.92, "y": 7, "width": 117.89, "height": 21 },
+          "nameText": { "x": 146.92, "y": 7, "width": 117.89, "height": 21 },
+          "badges": [{ "type": "moderator", "box": { "x": 267.31, "y": 8.5, "width": 20, "height": 20 } }],
+          "message": { "x": 80, "y": 7, "width": 380.88, "height": 46 },
+          "lines": [
+            { "box": { "x": 297.31, "y": 7, "width": 163.56, "height": 21 }, "text": "reminder: no spoilers" },
+            { "box": { "x": 80, "y": 32, "width": 52.31, "height": 21 }, "text": "in chat" }
+          ],
+          "emoji": []
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:light",
+      "role:moderator-wrench",
+      "scale:1.25",
+      "verified:no",
+      "timestamp:clock-12",
+      "avatar:letter",
+      "width:400",
+      "margin:0",
+      "transform:none",
+      "emoji:none",
+      "lines:2",
+      "name:handle"
+    ],
+    "notes": []
+  },
+  {
+    "id": "dark-owner-elapsed-1_5x",
+    "file": "dark-owner-elapsed-1_5x.png",
+    "width": 600,
+    "height": 73,
+    "scale": 1.5,
+    "pixelScale": 1.5,
+    "transform": { "jpegQuality": null, "pad": null, "resample": null, "stack": null, "avatarCut": null },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "@CopperOrbitMusic",
+          "message": "thanks for hanging out everyone!!",
+          "timestamp": "31:55",
+          "theme": "dark",
+          "role": "owner",
+          "verified": false,
+          "moderatorBadge": null,
+          "avatar": "letter"
+        },
+        "props": {
+          "name": "@CopperOrbitMusic",
+          "message": "thanks for hanging out everyone!!",
+          "theme": "dark",
+          "role": "owner",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "letter:#388E3C:64px",
+          "memberBadgeSrc": null,
+          "timestamp": "31:55",
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": 0, "width": 600, "height": 73 },
+          "avatar": { "x": 36, "y": 6, "width": 36, "height": 36 },
+          "timestamp": { "x": 96, "y": 13, "width": 41.09, "height": 20 },
+          "nameChip": { "x": 149.09, "y": 6, "width": 201.95, "height": 31 },
+          "nameText": { "x": 155.09, "y": 9, "width": 189.95, "height": 25 },
+          "badges": [],
+          "message": { "x": 96, "y": 9, "width": 441.67, "height": 55 },
+          "lines": [
+            { "box": { "x": 363.05, "y": 9, "width": 174.63, "height": 25 }, "text": "thanks for hanging" },
+            { "box": { "x": 96, "y": 39, "width": 130.44, "height": 25 }, "text": "out everyone!!" }
+          ],
+          "emoji": []
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:dark",
+      "role:owner",
+      "scale:1.5",
+      "verified:no",
+      "timestamp:elapsed",
+      "avatar:letter",
+      "width:400",
+      "margin:0",
+      "transform:none",
+      "emoji:none",
+      "lines:2",
+      "name:handle"
+    ],
+    "notes": []
+  },
+  {
+    "id": "light-owner-verified-hours-2x",
+    "file": "light-owner-verified-hours-2x.png",
+    "width": 800,
+    "height": 98,
+    "scale": 2,
+    "pixelScale": 2,
+    "transform": { "jpegQuality": null, "pad": null, "resample": null, "stack": null, "avatarCut": null },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "@NeonOrchard",
+          "message": "new single drops Friday",
+          "timestamp": "1:02:33",
+          "theme": "light",
+          "role": "owner",
+          "verified": true,
+          "moderatorBadge": null,
+          "avatar": "image"
+        },
+        "props": {
+          "name": "@NeonOrchard",
+          "message": "new single drops Friday",
+          "theme": "light",
+          "role": "owner",
+          "verified": true,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "image:logo-5:64px",
+          "memberBadgeSrc": null,
+          "timestamp": "1:02:33",
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": 0, "width": 800, "height": 98 },
+          "avatar": { "x": 48, "y": 8, "width": 48, "height": 48 },
+          "timestamp": { "x": 128, "y": 18, "width": 72.48, "height": 27 },
+          "nameChip": { "x": 216.48, "y": 8, "width": 239.08, "height": 42 },
+          "nameText": { "x": 224.48, "y": 12, "width": 191.08, "height": 34 },
+          "badges": [{ "type": "verified", "box": { "x": 419.56, "y": 13.59, "width": 32, "height": 32 } }],
+          "message": { "x": 128, "y": 12, "width": 554.06, "height": 75 },
+          "lines": [
+            { "box": { "x": 471.56, "y": 12, "width": 210.5, "height": 34 }, "text": "new single drops" },
+            { "box": { "x": 128, "y": 53, "width": 75.48, "height": 34 }, "text": "Friday" }
+          ],
+          "emoji": []
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:light",
+      "role:owner",
+      "scale:2",
+      "verified:yes",
+      "timestamp:elapsed-hours",
+      "avatar:image",
+      "width:400",
+      "margin:0",
+      "transform:none",
+      "emoji:none",
+      "lines:2",
+      "name:handle"
+    ],
+    "notes": []
+  },
+  {
+    "id": "dark-verified-no-avatar-1x",
+    "file": "dark-verified-no-avatar-1x.png",
+    "width": 352,
+    "height": 32,
+    "scale": 1,
+    "pixelScale": 1,
+    "transform": { "jpegQuality": null, "pad": null, "resample": null, "stack": null, "avatarCut": null },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "@HollowTideTV",
+          "message": "that transition was smooth",
+          "timestamp": null,
+          "theme": "dark",
+          "role": "viewer",
+          "verified": true,
+          "moderatorBadge": null,
+          "avatar": "none"
+        },
+        "props": {
+          "name": "@HollowTideTV",
+          "message": "that transition was smooth",
+          "theme": "dark",
+          "role": "viewer",
+          "verified": true,
+          "moderatorBadge": "shield",
+          "hideAvatar": true,
+          "avatarSrc": null,
+          "memberBadgeSrc": null,
+          "timestamp": null,
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": -48, "y": 0, "width": 400, "height": 32 },
+          "avatar": null,
+          "timestamp": null,
+          "nameChip": { "x": 16, "y": 7, "width": 117.08, "height": 17 },
+          "nameText": { "x": 16, "y": 7, "width": 101.08, "height": 17 },
+          "badges": [{ "type": "verified", "box": { "x": 119.08, "y": 7.8, "width": 16, "height": 16 } }],
+          "message": { "x": 141.08, "y": 7, "width": 166.77, "height": 17 },
+          "lines": [
+            {
+              "box": { "x": 141.08, "y": 7, "width": 166.77, "height": 17 },
+              "text": "that transition was smooth"
+            }
+          ],
+          "emoji": []
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:dark",
+      "role:viewer",
+      "scale:1",
+      "verified:yes",
+      "timestamp:none",
+      "avatar:none",
+      "width:400",
+      "margin:0",
+      "transform:none",
+      "emoji:none",
+      "lines:1",
+      "name:handle"
+    ],
+    "notes": []
+  },
+  {
+    "id": "dark-multiline-1_25x",
+    "file": "dark-multiline-1_25x.png",
+    "width": 481,
+    "height": 135,
+    "scale": 1.25,
+    "pixelScale": 1.25,
+    "transform": { "jpegQuality": null, "pad": null, "resample": null, "stack": null, "avatarCut": null },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "@rustywalrus",
+          "message": "I have been listening to this band since high school and they never miss. The way the drums come in after the quiet part gives me chills every single time, honestly the best stream all month!",
+          "timestamp": null,
+          "theme": "dark",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": null,
+          "avatar": "letter"
+        },
+        "props": {
+          "name": "@rustywalrus",
+          "message": "I have been listening to this band since high school and they never miss. The way the drums come in after the quiet part gives me chills every single time, honestly the best stream all month!",
+          "theme": "dark",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "letter:#0288D1:32px",
+          "memberBadgeSrc": null,
+          "timestamp": null,
+          "rowWidth": 385,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": 0, "width": 481.25, "height": 135 },
+          "avatar": { "x": 30, "y": 5, "width": 30, "height": 30 },
+          "timestamp": null,
+          "nameChip": { "x": 80, "y": 7, "width": 106.84, "height": 21 },
+          "nameText": { "x": 80, "y": 7, "width": 106.84, "height": 21 },
+          "badges": [],
+          "message": { "x": 80, "y": 7, "width": 362.88, "height": 121 },
+          "lines": [
+            {
+              "box": { "x": 196.84, "y": 7, "width": 211.34, "height": 21 },
+              "text": "I have been listening to this"
+            },
+            {
+              "box": { "x": 80, "y": 32, "width": 342.63, "height": 21 },
+              "text": "band since high school and they never miss."
+            },
+            {
+              "box": { "x": 80, "y": 57, "width": 362.88, "height": 21 },
+              "text": "The way the drums come in after the quiet part"
+            },
+            {
+              "box": { "x": 80, "y": 82, "width": 352.42, "height": 21 },
+              "text": "gives me chills every single time, honestly the"
+            },
+            { "box": { "x": 80, "y": 107, "width": 174.45, "height": 21 }, "text": "best stream all month!" }
+          ],
+          "emoji": []
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:dark",
+      "role:viewer",
+      "scale:1.25",
+      "verified:no",
+      "timestamp:none",
+      "avatar:letter",
+      "width:385",
+      "margin:0",
+      "transform:none",
+      "emoji:none",
+      "lines:4+",
+      "name:handle"
+    ],
+    "notes": []
+  },
+  {
+    "id": "light-emoji-start-1x",
+    "file": "light-emoji-start-1x.png",
+    "width": 400,
+    "height": 32,
+    "scale": 1,
+    "pixelScale": 1,
+    "transform": { "jpegQuality": null, "pad": null, "resample": null, "stack": null, "avatarCut": null },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "@ember_sprout",
+          "message": "🔥🔥 this riff is so good",
+          "timestamp": null,
+          "theme": "light",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": null,
+          "avatar": "letter"
+        },
+        "props": {
+          "name": "@ember_sprout",
+          "message": "🔥🔥 this riff is so good",
+          "theme": "light",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "letter:#616161:32px",
+          "memberBadgeSrc": null,
+          "timestamp": null,
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": 0, "width": 400, "height": 32 },
+          "avatar": { "x": 24, "y": 4, "width": 24, "height": 24 },
+          "timestamp": null,
+          "nameChip": { "x": 64, "y": 6.7, "width": 99.08, "height": 17 },
+          "nameText": { "x": 64, "y": 6.7, "width": 99.08, "height": 17 },
+          "badges": [],
+          "message": { "x": 171.08, "y": 6.7, "width": 171.73, "height": 17 },
+          "lines": [
+            {
+              "box": { "x": 173.08, "y": 3, "width": 169.73, "height": 24 },
+              "text": "🔥🔥 this riff is so good"
+            }
+          ],
+          "emoji": [
+            { "box": { "x": 173.08, "y": 3, "width": 24, "height": 24 }, "emoji": "🔥" },
+            { "box": { "x": 201.08, "y": 3, "width": 24, "height": 24 }, "emoji": "🔥" }
+          ]
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:light",
+      "role:viewer",
+      "scale:1",
+      "verified:no",
+      "timestamp:none",
+      "avatar:letter",
+      "width:400",
+      "margin:0",
+      "transform:none",
+      "emoji:start",
+      "emoji:middle",
+      "emoji:adjacent",
+      "lines:1",
+      "name:handle"
+    ],
+    "notes": []
+  },
+  {
+    "id": "dark-emoji-middle-1_5x",
+    "file": "dark-emoji-middle-1_5x.png",
+    "width": 600,
+    "height": 48,
+    "scale": 1.5,
+    "pixelScale": 1.5,
+    "transform": { "jpegQuality": null, "pad": null, "resample": null, "stack": null, "avatarCut": null },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "@Marble.Raven",
+          "message": "okay 😂😂 that was clean",
+          "timestamp": null,
+          "theme": "dark",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": null,
+          "avatar": "letter"
+        },
+        "props": {
+          "name": "@Marble.Raven",
+          "message": "okay 😂😂 that was clean",
+          "theme": "dark",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "letter:#689F38:64px",
+          "memberBadgeSrc": null,
+          "timestamp": null,
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": 0, "width": 600, "height": 48 },
+          "avatar": { "x": 36, "y": 6, "width": 36, "height": 36 },
+          "timestamp": null,
+          "nameChip": { "x": 96, "y": 9.55, "width": 147.8, "height": 25 },
+          "nameText": { "x": 96, "y": 9.55, "width": 147.8, "height": 25 },
+          "badges": [],
+          "message": { "x": 255.8, "y": 9.55, "width": 273.7, "height": 25 },
+          "lines": [
+            {
+              "box": { "x": 255.8, "y": 4.5, "width": 273.7, "height": 36 },
+              "text": "okay 😂😂 that was clean"
+            }
+          ],
+          "emoji": [
+            { "box": { "x": 307.84, "y": 4.5, "width": 36, "height": 36 }, "emoji": "😂" },
+            { "box": { "x": 349.84, "y": 4.5, "width": 36, "height": 36 }, "emoji": "😂" }
+          ]
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:dark",
+      "role:viewer",
+      "scale:1.5",
+      "verified:no",
+      "timestamp:none",
+      "avatar:letter",
+      "width:400",
+      "margin:0",
+      "transform:none",
+      "emoji:middle",
+      "emoji:adjacent",
+      "lines:1",
+      "name:handle"
+    ],
+    "notes": []
+  },
+  {
+    "id": "light-emoji-end-2x",
+    "file": "light-emoji-end-2x.png",
+    "width": 800,
+    "height": 64,
+    "scale": 2,
+    "pixelScale": 2,
+    "transform": { "jpegQuality": null, "pad": null, "resample": null, "stack": null, "avatarCut": null },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "@turnip_tempo",
+          "message": "love this part ❤",
+          "timestamp": null,
+          "theme": "light",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": null,
+          "avatar": "letter"
+        },
+        "props": {
+          "name": "@turnip_tempo",
+          "message": "love this part ❤\ufe0f",
+          "theme": "light",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "letter:#C2185B:64px",
+          "memberBadgeSrc": null,
+          "timestamp": null,
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": 0, "width": 800, "height": 64 },
+          "avatar": { "x": 48, "y": 8, "width": 48, "height": 48 },
+          "timestamp": null,
+          "nameChip": { "x": 128, "y": 12.39, "width": 191.25, "height": 34 },
+          "nameText": { "x": 128, "y": 12.39, "width": 191.25, "height": 34 },
+          "badges": [],
+          "message": { "x": 335.25, "y": 12.39, "width": 223.78, "height": 34 },
+          "lines": [{ "box": { "x": 335.25, "y": 6, "width": 219.78, "height": 48 }, "text": "love this part ❤" }],
+          "emoji": [{ "box": { "x": 507.03, "y": 6, "width": 48, "height": 48 }, "emoji": "❤" }]
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:light",
+      "role:viewer",
+      "scale:2",
+      "verified:no",
+      "timestamp:none",
+      "avatar:letter",
+      "width:400",
+      "margin:0",
+      "transform:none",
+      "emoji:end",
+      "lines:1",
+      "name:handle"
+    ],
+    "notes": []
+  },
+  {
+    "id": "dark-display-name-1x",
+    "file": "dark-display-name-1x.png",
+    "width": 400,
+    "height": 48,
+    "scale": 1,
+    "pixelScale": 1,
+    "transform": { "jpegQuality": null, "pad": null, "resample": null, "stack": null, "avatarCut": null },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "Zoë Ashbrook",
+          "message": "saw them live in Oslo, best night ever",
+          "timestamp": null,
+          "theme": "dark",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": null,
+          "avatar": "image"
+        },
+        "props": {
+          "name": "Zoë Ashbrook",
+          "message": "saw them live in Oslo, best night ever",
+          "theme": "dark",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "image:landscape-7:32px",
+          "memberBadgeSrc": null,
+          "timestamp": null,
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": 0, "width": 400, "height": 48 },
+          "avatar": { "x": 24, "y": 4, "width": 24, "height": 24 },
+          "timestamp": null,
+          "nameChip": { "x": 64, "y": 5, "width": 87.33, "height": 17 },
+          "nameText": { "x": 64, "y": 5, "width": 87.33, "height": 17 },
+          "badges": [],
+          "message": { "x": 64, "y": 5, "width": 294.97, "height": 37 },
+          "lines": [
+            {
+              "box": { "x": 159.33, "y": 5, "width": 199.64, "height": 17 },
+              "text": "saw them live in Oslo, best night"
+            },
+            { "box": { "x": 64, "y": 25, "width": 26.2, "height": 17 }, "text": "ever" }
+          ],
+          "emoji": []
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:dark",
+      "role:viewer",
+      "scale:1",
+      "verified:no",
+      "timestamp:none",
+      "avatar:image",
+      "width:400",
+      "margin:0",
+      "transform:none",
+      "emoji:none",
+      "lines:2",
+      "name:display",
+      "name:accented"
+    ],
+    "notes": []
+  },
+  {
+    "id": "dark-stack3-cut-top-1_25x",
+    "file": "dark-stack3-cut-top-1_25x.png",
+    "width": 500,
+    "height": 130,
+    "scale": 1.25,
+    "pixelScale": 1.25,
+    "transform": {
+      "jpegQuality": null,
+      "pad": null,
+      "resample": null,
+      "stack": { "count": 3, "cutTop": 30, "cutBottom": 0 },
+      "avatarCut": null
+    },
+    "comments": [
+      {
+        "complete": false,
+        "truth": {
+          "name": "@glacier_moth",
+          "message": "first time catching one of these live",
+          "timestamp": null,
+          "theme": "dark",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": null,
+          "avatar": "letter"
+        },
+        "props": {
+          "name": "@glacier_moth",
+          "message": "first time catching one of these live",
+          "theme": "dark",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "letter:#1976D2:32px",
+          "memberBadgeSrc": null,
+          "timestamp": null,
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": -30, "width": 500, "height": 60 },
+          "avatar": { "x": 30, "y": -25, "width": 30, "height": 30 },
+          "timestamp": null,
+          "nameChip": { "x": 80, "y": -23, "width": 117.23, "height": 21 },
+          "nameText": { "x": 80, "y": -23, "width": 117.23, "height": 21 },
+          "badges": [],
+          "message": { "x": 80, "y": -23, "width": 368.83, "height": 46 },
+          "lines": [
+            {
+              "box": { "x": 207.23, "y": -23, "width": 241.59, "height": 21 },
+              "text": "first time catching one of these"
+            },
+            { "box": { "x": 80, "y": 2, "width": 26.16, "height": 21 }, "text": "live" }
+          ],
+          "emoji": []
+        }
+      },
+      {
+        "complete": true,
+        "truth": {
+          "name": "@Willow.Comet",
+          "message": "is the merch still $25?",
+          "timestamp": null,
+          "theme": "dark",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": null,
+          "avatar": "image"
+        },
+        "props": {
+          "name": "@Willow.Comet",
+          "message": "is the merch still $25?",
+          "theme": "dark",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "image:blobs-3:32px",
+          "memberBadgeSrc": null,
+          "timestamp": null,
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": 30, "width": 500, "height": 40 },
+          "avatar": { "x": 30, "y": 35, "width": 30, "height": 30 },
+          "timestamp": null,
+          "nameChip": { "x": 80, "y": 39.5, "width": 123.02, "height": 21 },
+          "nameText": { "x": 80, "y": 39.5, "width": 123.02, "height": 21 },
+          "badges": [],
+          "message": { "x": 213.02, "y": 39.5, "width": 169.8, "height": 21 },
+          "lines": [
+            {
+              "box": { "x": 213.02, "y": 39.5, "width": 169.8, "height": 21 },
+              "text": "is the merch still $25?"
+            }
+          ],
+          "emoji": []
+        }
+      },
+      {
+        "complete": true,
+        "truth": {
+          "name": "@sel_mor",
+          "message": "this channel deserves way more subs",
+          "timestamp": null,
+          "theme": "dark",
+          "role": "moderator",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "avatar": "letter"
+        },
+        "props": {
+          "name": "@sel_mor",
+          "message": "this channel deserves way more subs",
+          "theme": "dark",
+          "role": "moderator",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "letter:#00796B:32px",
+          "memberBadgeSrc": null,
+          "timestamp": null,
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": 70, "width": 500, "height": 60 },
+          "avatar": { "x": 30, "y": 75, "width": 30, "height": 30 },
+          "timestamp": null,
+          "nameChip": { "x": 80, "y": 77, "width": 77.73, "height": 21 },
+          "nameText": { "x": 80, "y": 77, "width": 77.73, "height": 21 },
+          "badges": [{ "type": "moderator", "box": { "x": 160.23, "y": 78.5, "width": 20, "height": 20 } }],
+          "message": { "x": 80, "y": 77, "width": 358.86, "height": 46 },
+          "lines": [
+            {
+              "box": { "x": 190.23, "y": 77, "width": 248.62, "height": 21 },
+              "text": "this channel deserves way more"
+            },
+            { "box": { "x": 80, "y": 102, "width": 37.55, "height": 21 }, "text": "subs" }
+          ],
+          "emoji": []
+        }
+      }
+    ],
+    "target": 1,
+    "tags": [
+      "theme:dark",
+      "role:viewer",
+      "scale:1.25",
+      "verified:no",
+      "timestamp:none",
+      "avatar:image",
+      "width:400",
+      "margin:0",
+      "transform:stack",
+      "transform:stack-cut",
+      "emoji:none",
+      "lines:1",
+      "name:handle",
+      "rows:3"
+    ],
+    "notes": []
+  },
+  {
+    "id": "dark-jpeg-1_5x",
+    "file": "dark-jpeg-1_5x.jpg",
+    "width": 600,
+    "height": 48,
+    "scale": 1.5,
+    "pixelScale": 1.5,
+    "transform": { "jpegQuality": 80, "pad": null, "resample": null, "stack": null, "avatarCut": null },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "@MarbleRaven7",
+          "message": "the bass is so heavy on this one",
+          "timestamp": null,
+          "theme": "dark",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": null,
+          "avatar": "image"
+        },
+        "props": {
+          "name": "@MarbleRaven7",
+          "message": "the bass is so heavy on this one",
+          "theme": "dark",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "image:gradient-9:64px",
+          "memberBadgeSrc": null,
+          "timestamp": null,
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": 0, "width": 600, "height": 48 },
+          "avatar": { "x": 36, "y": 6, "width": 36, "height": 36 },
+          "timestamp": null,
+          "nameChip": { "x": 96, "y": 11, "width": 153.89, "height": 25 },
+          "nameText": { "x": 96, "y": 11, "width": 153.89, "height": 25 },
+          "badges": [],
+          "message": { "x": 261.89, "y": 11, "width": 296.44, "height": 25 },
+          "lines": [
+            {
+              "box": { "x": 261.89, "y": 11, "width": 296.44, "height": 25 },
+              "text": "the bass is so heavy on this one"
+            }
+          ],
+          "emoji": []
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:dark",
+      "role:viewer",
+      "scale:1.5",
+      "verified:no",
+      "timestamp:none",
+      "avatar:image",
+      "width:400",
+      "margin:0",
+      "transform:jpeg",
+      "emoji:none",
+      "lines:1",
+      "name:handle"
+    ],
+    "notes": []
+  },
+  {
+    "id": "light-pad-1x",
+    "file": "light-pad-1x.png",
+    "width": 432,
+    "height": 62,
+    "scale": 1,
+    "pixelScale": 1,
+    "transform": {
+      "jpegQuality": null,
+      "pad": { "left": 12, "top": 8, "right": 20, "bottom": 6 },
+      "resample": null,
+      "stack": null,
+      "avatarCut": null
+    },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "@turbo-pigeon",
+          "message": "audio is a bit out of sync for me (headphones)",
+          "timestamp": null,
+          "theme": "light",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": null,
+          "avatar": "letter"
+        },
+        "props": {
+          "name": "@turbo-pigeon",
+          "message": "audio is a bit out of sync for me (headphones)",
+          "theme": "light",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "letter:#0288D1:32px",
+          "memberBadgeSrc": null,
+          "timestamp": null,
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 12, "y": 8, "width": 400, "height": 48 },
+          "avatar": { "x": 36, "y": 12, "width": 24, "height": 24 },
+          "timestamp": null,
+          "nameChip": { "x": 76, "y": 13, "width": 93.14, "height": 17 },
+          "nameText": { "x": 76, "y": 13, "width": 93.14, "height": 17 },
+          "badges": [],
+          "message": { "x": 76, "y": 13, "width": 296.98, "height": 37 },
+          "lines": [
+            {
+              "box": { "x": 177.14, "y": 13, "width": 195.84, "height": 17 },
+              "text": "audio is a bit out of sync for me"
+            },
+            { "box": { "x": 76, "y": 33, "width": 86.25, "height": 17 }, "text": "(headphones)" }
+          ],
+          "emoji": []
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:light",
+      "role:viewer",
+      "scale:1",
+      "verified:no",
+      "timestamp:none",
+      "avatar:letter",
+      "width:400",
+      "margin:0",
+      "transform:pad",
+      "emoji:none",
+      "lines:2",
+      "name:handle"
+    ],
+    "notes": []
+  },
+  {
+    "id": "light-confusable-1x",
+    "file": "light-confusable-1x.png",
+    "width": 400,
+    "height": 32,
+    "scale": 1,
+    "pixelScale": 1,
+    "transform": { "jpegQuality": null, "pad": null, "resample": null, "stack": null, "avatarCut": null },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "@Il1lO0o_rnvvm",
+          "message": "W",
+          "timestamp": null,
+          "theme": "light",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": null,
+          "avatar": "letter"
+        },
+        "props": {
+          "name": "@Il1lO0o_rnvvm",
+          "message": "W",
+          "theme": "light",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "letter:#1976D2:32px",
+          "memberBadgeSrc": null,
+          "timestamp": null,
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": 0, "width": 400, "height": 32 },
+          "avatar": { "x": 24, "y": 4, "width": 24, "height": 24 },
+          "timestamp": null,
+          "nameChip": { "x": 64, "y": 7, "width": 102.27, "height": 17 },
+          "nameText": { "x": 64, "y": 7, "width": 102.27, "height": 17 },
+          "badges": [],
+          "message": { "x": 174.27, "y": 7, "width": 12.42, "height": 17 },
+          "lines": [{ "box": { "x": 174.27, "y": 7, "width": 12.42, "height": 17 }, "text": "W" }],
+          "emoji": []
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:light",
+      "role:viewer",
+      "scale:1",
+      "verified:no",
+      "timestamp:none",
+      "avatar:letter",
+      "width:400",
+      "margin:0",
+      "transform:none",
+      "emoji:none",
+      "lines:1",
+      "name:handle"
+    ],
+    "notes": []
+  },
+  {
+    "id": "dark-emoji-only-1_25x",
+    "file": "dark-emoji-only-1_25x.png",
+    "width": 500,
+    "height": 40,
+    "scale": 1.25,
+    "pixelScale": 1.25,
+    "transform": { "jpegQuality": null, "pad": null, "resample": null, "stack": null, "avatarCut": null },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "@sleepymammoth",
+          "message": "😂😂👍🏽",
+          "timestamp": null,
+          "theme": "dark",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": null,
+          "avatar": "letter"
+        },
+        "props": {
+          "name": "@sleepymammoth",
+          "message": "😂😂👍🏽",
+          "theme": "dark",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "letter:#0288D1:32px",
+          "memberBadgeSrc": null,
+          "timestamp": null,
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": 0, "y": 0, "width": 500, "height": 40 },
+          "avatar": { "x": 30, "y": 5, "width": 30, "height": 30 },
+          "timestamp": null,
+          "nameChip": { "x": 80, "y": 7.62, "width": 146.88, "height": 21 },
+          "nameText": { "x": 80, "y": 7.62, "width": 146.88, "height": 21 },
+          "badges": [],
+          "message": { "x": 236.88, "y": 7.62, "width": 105, "height": 21 },
+          "lines": [{ "box": { "x": 239.38, "y": 3.75, "width": 100, "height": 30 }, "text": "😂😂👍🏽" }],
+          "emoji": [
+            { "box": { "x": 239.38, "y": 3.75, "width": 30, "height": 30 }, "emoji": "😂" },
+            { "box": { "x": 274.38, "y": 3.75, "width": 30, "height": 30 }, "emoji": "😂" },
+            { "box": { "x": 309.38, "y": 3.75, "width": 30, "height": 30 }, "emoji": "👍🏽" }
+          ]
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:dark",
+      "role:viewer",
+      "scale:1.25",
+      "verified:no",
+      "timestamp:none",
+      "avatar:letter",
+      "width:400",
+      "margin:0",
+      "transform:none",
+      "emoji:only",
+      "lines:1",
+      "name:handle"
+    ],
+    "notes": []
+  },
+  {
+    "id": "light-avatar-cut-1_5x",
+    "file": "light-avatar-cut-1_5x.png",
+    "width": 546,
+    "height": 48,
+    "scale": 1.5,
+    "pixelScale": 1.5,
+    "transform": { "jpegQuality": null, "pad": null, "resample": null, "stack": null, "avatarCut": 54 },
+    "comments": [
+      {
+        "complete": true,
+        "truth": {
+          "name": "@lazy_lantern",
+          "message": "10/10 would listen again",
+          "timestamp": null,
+          "theme": "light",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": null,
+          "avatar": "image"
+        },
+        "props": {
+          "name": "@lazy_lantern",
+          "message": "10/10 would listen again",
+          "theme": "light",
+          "role": "viewer",
+          "verified": false,
+          "moderatorBadge": "shield",
+          "hideAvatar": false,
+          "avatarSrc": "image:portrait-21:64px",
+          "memberBadgeSrc": null,
+          "timestamp": null,
+          "rowWidth": 400,
+          "margin": 0
+        },
+        "geometry": {
+          "row": { "x": -54, "y": 0, "width": 600, "height": 48 },
+          "avatar": { "x": -18, "y": 6, "width": 36, "height": 36 },
+          "timestamp": null,
+          "nameChip": { "x": 42, "y": 11, "width": 131.48, "height": 25 },
+          "nameText": { "x": 42, "y": 11, "width": 131.48, "height": 25 },
+          "badges": [],
+          "message": { "x": 185.48, "y": 11, "width": 229.78, "height": 25 },
+          "lines": [
+            {
+              "box": { "x": 185.48, "y": 11, "width": 229.78, "height": 25 },
+              "text": "10/10 would listen again"
+            }
+          ],
+          "emoji": []
+        }
+      }
+    ],
+    "target": 0,
+    "tags": [
+      "theme:light",
+      "role:viewer",
+      "scale:1.5",
+      "verified:no",
+      "timestamp:none",
+      "avatar:image",
+      "width:400",
+      "margin:0",
+      "transform:avatar-cut",
+      "emoji:none",
+      "lines:1",
+      "name:handle"
+    ],
+    "notes": []
+  }
+]

@@ -19,12 +19,19 @@ const HIDDEN = process.env.YT_COMMENT_HIDDEN === '1';
 // Text limits are shared with the editor, so its preview always shows exactly what gets exported.
 const LIMITS = { ...TEXT_LIMITS, url: 2048, dataUrl: 5 * 1024 * 1024 };
 const MAX_VIDEO_BYTES = 1024 * 1024 * 1024;
+// A screenshot to read a comment from: far more than any snip of a chat (a 4K PNG is ~10-30 MB). The editor
+// applies the same cap to pasted and dropped files (MAX_BYTES in src/editor/screenshot.js).
+const MAX_SCREENSHOT_BYTES = 50 * 1024 * 1024;
+const READ_CHUNK_BYTES = 1024 * 1024;
+// What Chromium decodes. Browsers on Windows may save a JPEG as .jfif (or .jpe, .pjpeg, .pjp).
+const SCREENSHOT_EXTENSIONS = ['png', 'apng', 'jpg', 'jpeg', 'jpe', 'jfif', 'pjpeg', 'pjp', 'webp', 'avif', 'bmp', 'gif'];
 const THEMES = ['dark', 'light'];
 const ROLES = ['viewer', 'member', 'moderator', 'owner'];
 const MODERATOR_BADGES = ['shield', 'wrench'];
 
 let editorWindow = null;
 let lastSaveDir = null;
+let lastOpenDir = null;
 let lastScale = null;
 
 if (!app.requestSingleInstanceLock()) {
@@ -137,6 +144,8 @@ function buildMenu() {
         { id: 'copy', label: 'Copy Image', accelerator: 'CmdOrCtrl+Shift+C', click: command('copy') },
         { id: 'video', label: 'Save Typing Video…', accelerator: 'CmdOrCtrl+Shift+S', click: command('video') },
         { type: 'separator' },
+        { id: 'read-screenshot', label: 'Read Comment from Screenshot…', accelerator: 'CmdOrCtrl+O', click: command('read-screenshot') },
+        { type: 'separator' },
         { role: 'quit' },
       ],
     },
@@ -245,6 +254,24 @@ function registerIpc() {
     return { width, height, warnings };
   });
 
+  // A screenshot of a real comment, chosen in an open dialog: the editor reads its name and message.
+  ipcMain.handle('screenshot:open', async (event) => {
+    assertFromEditor(event);
+    const owner = BrowserWindow.fromWebContents(event.sender) ?? editorWindow;
+    const { canceled, filePaths } = await dialog.showOpenDialog(owner, {
+      title: 'Read a comment from a screenshot',
+      defaultPath: lastOpenDir ?? defaultSaveDir(),
+      // All files too: the editor tells by the contents whether a file is an image it can read.
+      filters: [{ name: 'Images', extensions: SCREENSHOT_EXTENSIONS }, { name: 'All files', extensions: ['*'] }],
+      properties: ['openFile'],
+    });
+    if (canceled || !filePaths?.length) return { canceled: true };
+    const filePath = filePaths[0];
+    const bytes = await readScreenshotBytes(filePath);
+    lastOpenDir = path.dirname(filePath);
+    return { canceled: false, name: path.basename(filePath), bytes };
+  });
+
   ipcMain.handle('display:get-scale', (event) => {
     assertFromEditor(event);
     return currentDisplayScale();
@@ -262,6 +289,37 @@ function emitScaleIfChanged() {
   if (scale === lastScale) return;
   lastScale = scale;
   editorWindow.webContents.send('display:scale-changed', scale);
+}
+
+/**
+ * The bytes of the screenshot at `filePath`, read a piece at a time and given up as soon as they pass
+ * MAX_SCREENSHOT_BYTES. The size the file system reports can't be trusted for that: a named pipe, or a device
+ * such as \\wsl$\Ubuntu\dev\zero, is a "file" of 0 bytes that never ends (and a file can grow meanwhile).
+ */
+async function readScreenshotBytes(filePath) {
+  const name = path.basename(filePath);
+  const tooBig = () => new Error(`${name} is too big to be a screenshot of a comment.`);
+  const info = await fs.stat(filePath); // before opening: opening a FIFO (Linux, macOS) waits for a writer
+  if (!info.isFile()) throw new Error(`${name} isn't a file the app can open.`);
+  if (info.size > MAX_SCREENSHOT_BYTES) throw tooBig();
+  const file = await fs.open(filePath, 'r');
+  try {
+    const chunk = Buffer.allocUnsafe(READ_CHUNK_BYTES);
+    const chunks = [];
+    let total = 0;
+    for (;;) {
+      const { bytesRead } = await file.read(chunk, 0, chunk.length, null);
+      if (!bytesRead) break;
+      total += bytesRead;
+      if (total > MAX_SCREENSHOT_BYTES) throw tooBig();
+      // A copy of just what was read: a pipe hands over a few KB at a time, and the next read reuses `chunk`.
+      chunks.push(Buffer.from(chunk.subarray(0, bytesRead)));
+    }
+    if (!total) throw new Error(`${name} is empty.`);
+    return Buffer.concat(chunks, total);
+  } finally {
+    await file.close();
+  }
 }
 
 /**

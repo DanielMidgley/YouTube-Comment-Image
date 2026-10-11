@@ -92,6 +92,40 @@ at a time (an emoji counts as one character), with the name, avatar and badges t
 and settings), so the video shows the same pixel-faithful comment; as the text wraps, the row grows
 downwards, and the frame size is that of the finished comment.
 
+## Read a comment from a screenshot
+
+**Read a screenshot…** (Ctrl+O) fills in the name and message from a screenshot of a real live-chat
+comment, so you can recreate it or start from it. You can also paste a snip straight from Snipping Tool
+(Ctrl+V), or drop an image on the left half of the window, **Read the comment** (the right half makes it
+the avatar). A new screenshot replaces one still being read. **Undo** (or Ctrl+Z) puts back what you had,
+until you change the name or message yourself.
+
+- It reads YouTube's desktop live chat in either theme at any display scale and browser zoom (it measures
+  the scale from the avatar and the text), from a PNG or JPEG (WebP, AVIF, BMP and GIF open too). The snip
+  can include the avatar, a timestamp, badges, an owner's name chip, the "more" button that appears under
+  the pointer, extra background, or other comments around it (it reads the first complete one and says so,
+  and warns when the comment it read is cut off by the edge of the snip).
+- Emoji are recognised by matching them against YouTube's own emoji images, and accented letters (é, ö, ñ,
+  å, ç…) by the shape of the accent.
+- Text recognition runs on your computer ([Tesseract.js](https://github.com/naptha/tesseract.js) with its
+  English model, bundled with the app); nothing is uploaded.
+- Only the name and message are filled in. Theme, role, timestamp and the rest stay as you set them.
+
+Every word is checked against the width it takes up in the screenshot (the app knows exactly how wide
+YouTube draws each letter), which fixes most look-alike mistakes (`VVV` read as `VWV`, a miscounted
+`GOOOOO`, a `:)` read as `)`); a capital I and a lowercase l are told apart by their height. Words it is
+unsure of (no reading explains their width, or it had to choose between readings that fit) are named in
+the status line to double-check: all of them when there are up to five, otherwise the first five and how
+many more there are.
+
+It gets most comments exactly right, but check what it fills in: handles that mix look-alike characters
+(`Il1`, `O0o`) can still trip it up, and a screenshot that was resized after it was taken (made smaller to
+send, say) loses the detail it relies on: about half of those come back exactly. Only Latin script is read
+(other scripts need other OCR models). Text smaller than at 100 % on a 1× screen is often misread. Below
+125 % only four accents (´ ` ¨ ˚) are told apart, and below 150 % curly quotes (’ “ ”) and the
+ellipsis (…) look too much like ' " and ... to tell apart, so they come back as the straight ones. Comments
+under videos (not live chat) and phone screenshots aren't supported.
+
 ## How it stays faithful
 
 The comment is real YouTube markup styled by YouTube's own CSS, not an imitation:
@@ -106,7 +140,12 @@ The comment is real YouTube markup styled by YouTube's own CSS, not an imitation
 
 ## Tests
 
-- `npm test`: unit tests (emoji handling, text limits, typing timing, HTML escaping, the generated markup).
+- `npm test`: unit tests (emoji handling, text limits, typing timing, HTML escaping, the generated markup,
+  and the screenshot reader on the screenshots in `test/fixtures/screenshots` and on renders of comments it
+  once got wrong in `test/fixtures/screenshot-scenarios`), and the checks of the screenshot corpus
+  generator and of those fixtures (`test/screenshots/corpus.test.js`). Node can't decode JPEG, so the JPEG
+  fixture is read from a lossless copy of its pixels beside it; if the JPEG changes,
+  `node scripts/electron.js test/fixtures/screenshots/decode-jpegs.js` makes a new copy (the test says when).
 - `npm run test:visual`: the golden test, which compares the app's output with real YouTube rows pixel by
   pixel. It needs a YouTube live-chat page saved by a browser, which isn't in the repository (it would
   contain other people's comments): open a live stream in Chrome or Edge, let the chat fill, then
@@ -120,21 +159,43 @@ The comment is real YouTube markup styled by YouTube's own CSS, not an imitation
 - `node scripts/electron.js test/smoke/capture.js`: the capture pipeline (sizes at every scale, queueing,
   timeouts, crash recovery).
 - `node scripts/electron.js test/smoke/app.js`: the whole app, run hidden: editing, saving, copying, a
-  typing video (checked by reading the MP4 back), restoring saved settings, and the security checks.
+  typing video (checked by reading the MP4 back), reading screenshots (pasted, opened and dropped), restoring
+  saved settings, and the security checks.
+- `node scripts/electron.js test/smoke/ocr.js`: text recognition in the app's renderer, offline and under
+  its Content-Security-Policy. `node scripts/electron.js test/smoke/emoji-match.js`: emoji recognition on
+  renders of YouTube's emoji at seven scales, JPEG-compressed and resized too, and that avatars, badges,
+  text and channels' own emoji (flat tiles in skin tones and emoji colours among them) are not taken for
+  emoji, with a margin to spare.
+- `npm run test:screenshots -- test/fixtures/screenshots`: how well the screenshot reader does (exact names
+  and messages, character error rate, broken down by theme, role, scale and so on). For a bigger test,
+  `node scripts/electron.js test/screenshots/make-corpus.js` renders 400 varied comments (stacked, cropped,
+  padded, JPEG-compressed, resized…) into `test/screenshots/corpus/`, which `npm run test:screenshots` reads
+  by default. With a saved chat page (see above), `make-corpus.js --real` turns its rows into another set in
+  `test/screenshots/corpus-real/`. `--min=90` makes the run fail below 90 % exact; `--only=` an id or a tag
+  (`--only=transform:jpeg`) and `--limit=20` read only some of the cases; `--out=failed.json` saves the
+  failed ones (for the real set, only inside its own folder or the temp folder: they hold real people's
+  comments). Give options with `=` as shown: Electron refuses to start, without a word, when an argument
+  that looks like a web address (letters and a colon, as a tag has) is followed by another.
 
 YouTube's emoji list is bundled in `src/comment/youtube-emoji.js`; `node scripts/update-emoji.js [url]`
-regenerates it from the list YouTube's chat loads.
+regenerates it from the list YouTube's chat loads. Then run `node scripts/update-emoji-signatures.js`, which
+remakes the signatures the screenshot reader matches emoji against (`src/screenshot/emoji-signatures.js`;
+it downloads each emoji image once, into `node_modules/.cache`): `npm test` fails until the two agree. After
+an Electron update or a change to the fonts in `src/assets/fonts`,
+`node scripts/electron.js scripts/update-roboto-metrics.js` re-measures the letter widths the reader checks
+words against (`src/screenshot/roboto-metrics.js`; `--out=file` writes them elsewhere, to compare first).
 
 ## Project layout
 
 ```
-electron/     main process: windows, IPC, the app:// protocol, capture
-src/editor/   the editor window
-src/stage/    the page the comment is rendered (and captured) in
-src/comment/  markup, emoji, badges and avatars
-src/styles/   YouTube's chat CSS and the Roboto font faces
-test/         unit tests, smoke tests and the visual golden test
-docs/         the images in this README
+electron/       main process: windows, IPC, the app:// protocol, capture
+src/editor/     the editor window
+src/stage/      the page the comment is rendered (and captured) in
+src/comment/    markup, emoji, badges and avatars
+src/screenshot/ reading a comment from a screenshot: layout analysis, OCR, emoji matching
+src/styles/     YouTube's chat CSS and the Roboto font faces
+test/           unit tests, smoke tests, the visual golden test and the screenshot corpus
+docs/           the images in this README
 ```
 
 ## Licence
@@ -145,6 +206,16 @@ The app's own code is under the [MIT License](LICENSE). It also contains or uses
   `src/styles/youtube-chat.css` so that the comment renders identically; they belong to YouTube/Google;
 - [Roboto](https://fonts.google.com/specimen/Roboto) (Google), bundled in `src/assets/fonts` under its
   own licence;
-- Noto Emoji images, loaded at run time from Google's servers, the way YouTube's chat loads them;
+- [Noto Emoji](https://github.com/googlefonts/noto-emoji) images (Apache-2.0; its flag images are in the
+  public domain), loaded at run time from Google's servers, the way YouTube's chat loads them. The app also
+  contains signatures made from them (each image's average colours on an 8 × 8 grid, in
+  `src/screenshot/emoji-signatures.js`, made by `scripts/update-emoji-signatures.js`), and the screenshots
+  in `test/fixtures/screenshots` show some of them;
 - [Electron](https://www.electronjs.org/) (MIT) and [Mediabunny](https://mediabunny.dev/) (MPL-2.0), which
-  encodes the MP4.
+  encodes the MP4;
+- [Tesseract.js](https://github.com/naptha/tesseract.js) and its WebAssembly build of Tesseract
+  (Apache-2.0), which read screenshots, with Tesseract's English model (from tessdata, Apache-2.0; packaged
+  as `@tesseract.js-data/eng`, MIT). That build also contains
+  [Leptonica](https://github.com/DanBloomberg/leptonica) (BSD-2-Clause) and the image libraries it is built
+  with, each under its own permissive licence: zlib, libpng, libtiff, libwebp and the Independent JPEG
+  Group's libjpeg (this software is based in part on the work of the Independent JPEG Group).

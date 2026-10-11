@@ -8,6 +8,7 @@ import {
 import { LIMITS, capText } from '../comment/limits.js';
 import { normalizeMessage } from '../comment/render.js';
 import { TYPING, shownAt, splitGraphemes, typingFrames } from '../comment/typing.js';
+import { describeReading, readScreenshot } from './screenshot.js';
 
 const STORAGE_KEY = 'ytComment.editor.v1';
 const MESSAGE_LIMIT = 200; // YouTube's chat input counter; shown, not enforced
@@ -445,8 +446,13 @@ function onFormEvent(event) {
   const target = event.target;
   const final = event.type === 'change';
   switch (target.name) {
-    case 'name': state.name = target.value; break;
-    case 'message': state.message = target.value; break;
+    case 'name':
+    case 'message':
+      state[target.name] = target.value;
+      // Undo would now throw this edit away too. Only an actual change counts: Chromium also sends events that
+      // leave the text as the reading put it ('change' as a box typed in before the reading loses focus, say).
+      if (target.value !== lastReading?.filled[target.name]) forgetUndo();
+      break;
     case 'avatarMode':
       state.avatarMode = target.value;
       avatarUpload++; // an upload still being read must not switch the mode back
@@ -545,7 +551,7 @@ async function useBadgeFile(file) {
 
 function wireFileInput(inputId, chooseId, use) {
   const input = $(inputId);
-  $(chooseId).addEventListener('click', () => input.click());
+  if (chooseId) $(chooseId).addEventListener('click', () => input.click());
   input.addEventListener('change', () => {
     const file = input.files?.[0];
     input.value = ''; // so choosing the same file again still fires 'change'
@@ -553,10 +559,21 @@ function wireFileInput(inputId, chooseId, use) {
   });
 }
 
+/** A dropped image is either an avatar or a screenshot to read: the overlay's two halves say which. */
 function wireDragAndDrop() {
   const overlay = $('drop-overlay');
+  const targets = [...overlay.querySelectorAll('[data-drop]')]; // the left half, then the right (editor.css)
   const hasFiles = (event) => [...(event.dataTransfer?.types ?? [])].includes('Files');
+  // By the side of the window the pointer is on (the overlay lets drag events through to the page, so they keep
+  // their usual targets). The gap and margins around the halves belong to one of them too: the half that
+  // lights up is always what a drop does.
+  const targetOf = (event) => targets[event.clientX < window.innerWidth / 2 ? 0 : 1];
   let depth = 0;
+  const hide = () => {
+    depth = 0;
+    overlay.hidden = true;
+    for (const target of targets) target.classList.remove('active');
+  };
   window.addEventListener('dragenter', (event) => {
     if (!hasFiles(event)) return;
     event.preventDefault();
@@ -567,20 +584,139 @@ function wireDragAndDrop() {
     if (!hasFiles(event)) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = 'copy';
+    const over = targetOf(event);
+    for (const target of targets) target.classList.toggle('active', target === over);
   });
   window.addEventListener('dragleave', (event) => {
     if (!hasFiles(event)) return;
     depth = Math.max(0, depth - 1);
-    if (!depth) overlay.hidden = true;
+    if (!depth) hide();
   });
   window.addEventListener('drop', (event) => {
     if (!hasFiles(event)) return;
     event.preventDefault(); // never let the window navigate to the file
-    depth = 0;
-    overlay.hidden = true;
+    const kind = targetOf(event).dataset.drop;
+    hide();
     const files = [...event.dataTransfer.files];
     const file = files.find((f) => f.type.startsWith('image/')) ?? files[0];
-    if (file) useAvatarFile(file);
+    if (!file) return;
+    if (kind === 'screenshot') readScreenshotFile(file);
+    else useAvatarFile(file);
+  });
+}
+
+// ---- Reading a screenshot -------------------------------------------------------------------------------
+
+let readJob = null; // AbortController of the running read: a newer screenshot cancels it
+// The last reading, for Undo: the name and message it replaced (before) and what it left in the two fields
+// (filled). Kept until the user changes a field to something else.
+let lastReading = null;
+
+function setReadStatus(kind, text) {
+  const status = $('read-status');
+  status.className = `status read-status${kind ? ` ${kind}` : ''}`;
+  status.textContent = text;
+  $('read-undo').hidden = !lastReading; // a read that fails (or is running) leaves the last one undoable
+}
+
+function forgetUndo() {
+  if (!lastReading) return;
+  lastReading = null;
+  $('read-undo').hidden = true;
+}
+
+/** Asks for a screenshot (the main process's open dialog; a file input in a plain browser) and reads it. */
+async function chooseScreenshot() {
+  if (!api) {
+    $('read-file').click();
+    return;
+  }
+  let file;
+  try {
+    file = await api.openScreenshot();
+  } catch (error) {
+    readJob?.abort(); // a file chosen replaces a read still running, even when it can't be opened
+    setReadStatus('error', cleanError(error));
+    return;
+  }
+  if (!file.canceled) readScreenshotFile(new Blob([file.bytes]));
+}
+
+/** Fills in the name and message from the comment in a screenshot (a Blob or File of an image). */
+async function readScreenshotFile(blob) {
+  readJob?.abort();
+  const job = new AbortController();
+  readJob = job;
+  setReadStatus('', 'Reading the screenshot…');
+  try {
+    const result = await readScreenshot(blob, {
+      signal: job.signal,
+      onProgress: (text) => { if (!job.signal.aborted) setReadStatus('', text); },
+    });
+    if (job.signal.aborted) return;
+    const name = capText(result.name, LIMITS.name);
+    const message = capText(result.message, LIMITS.message);
+    if (!name && !message) throw new Error("Couldn't read any text in the comment.");
+    const before = { name: state.name, message: state.message };
+    if (name) state.name = name;
+    if (message) state.message = message;
+    $('name').value = state.name;
+    $('message').value = state.message;
+    // As the fields give the text back (a textarea's value turns \r\n into \n), for onFormEvent's comparison.
+    lastReading = { before, filled: { name: $('name').value, message: $('message').value } };
+    changed();
+    setReadStatus('ok', describeReading({ name, message, doubtful: result.doubtful, warnings: result.warnings }));
+  } catch (error) {
+    if (!job.signal.aborted) setReadStatus('error', cleanError(error)); // a cancelled read just stops
+  } finally {
+    if (readJob === job) readJob = null;
+  }
+}
+
+function undoReading() {
+  if (!lastReading) return;
+  const onButton = document.activeElement === $('read-undo');
+  Object.assign(state, lastReading.before);
+  $('name').value = state.name;
+  $('message').value = state.message;
+  forgetUndo();
+  changed();
+  setReadStatus('', 'Put back the name and message you had.');
+  if (onButton) $('read-screenshot').focus(); // the Undo button is gone now
+}
+
+/**
+ * Ctrl+Z (and Edit > Undo) undoes a reading while it can be undone, except in another text field, which has
+ * its own typing to undo. Chromium's undo can't undo a reading: the reading set the text directly, so the
+ * steps it keeps are of earlier typing, and replaying one in a replaced field changes nothing.
+ */
+function wireUndoShortcut() {
+  const ownUndo = (element) => element?.matches('input[type="text"], input[type="number"], textarea')
+    && element.name !== 'name' && element.name !== 'message';
+  document.addEventListener('keydown', (event) => {
+    if (!lastReading || event.isComposing || !event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return;
+    // (The key's code too: on a non-Latin layout the Z key doesn't type a z.)
+    if ((event.key.toLowerCase() !== 'z' && event.code !== 'KeyZ') || ownUndo(document.activeElement)) return;
+    event.preventDefault();
+    undoReading();
+  });
+  // Edit > Undo comes as Chromium's undo, which first announces the step it would undo, in its field.
+  form.addEventListener('beforeinput', (event) => {
+    if (event.inputType !== 'historyUndo' || !lastReading || (event.target.name !== 'name' && event.target.name !== 'message')) return;
+    event.preventDefault();
+    undoReading();
+  });
+}
+
+/** Ctrl+V with an image on the clipboard (a fresh snip) reads it, unless text is going into a text field. */
+function wirePaste() {
+  document.addEventListener('paste', (event) => {
+    const data = event.clipboardData;
+    const image = [...(data?.files ?? [])].find((file) => file.type.startsWith('image/'));
+    if (!image) return;
+    if (event.target.closest?.('input, textarea') && data.types.includes('text/plain')) return;
+    event.preventDefault();
+    readScreenshotFile(image);
   });
 }
 
@@ -781,6 +917,11 @@ function start() {
     }, { passive: true });
   }
   wireDragAndDrop();
+  wirePaste();
+  wireUndoShortcut();
+  $('read-screenshot').addEventListener('click', chooseScreenshot);
+  $('read-undo').addEventListener('click', undoReading);
+  wireFileInput('read-file', null, readScreenshotFile);
 
   $('save').addEventListener('click', () => runExport('save'));
   $('video').addEventListener('click', exportVideo);
@@ -790,6 +931,7 @@ function start() {
     api.onMenuCommand((command) => {
       if (command === 'save' || command === 'copy') runExport(command);
       else if (command === 'video') exportVideo();
+      else if (command === 'read-screenshot') chooseScreenshot();
     });
   } else {
     setStatus('', 'Preview only: open the desktop app to save or copy.');

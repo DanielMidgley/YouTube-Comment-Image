@@ -1,15 +1,18 @@
 // End-to-end check of the real app. Run: node scripts/electron.js test/smoke/app.js
 // Starts electron/main.js (editor hidden, throwaway profile, recorded save dialog and clipboard), waits for
 // the editor and its live preview, then drives it like a user: File > Save PNG… and Copy Image through the
-// menu, scale/theme changes, an avatar upload through the file input, invalid IPC input, blocked
+// menu, scale/theme changes, an avatar upload through the file input, a typing video, reading a comment from a
+// screenshot (paste, File > Read Comment, drop; Undo, cancelling, size limits), invalid IPC input, blocked
 // navigation. Fails on any console error or warning from the editor (and errors from the capture window).
 import { OUT_DIR, recorded } from './app-setup.js'; // must stay the first import
 import '../../electron/main.js';
-import { app, BrowserWindow, Menu, nativeImage } from 'electron';
+import { app, BrowserWindow, Menu, nativeImage, session } from 'electron';
 import fs from 'node:fs';
+import net from 'node:net';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { appUrl } from '../../electron/protocol.js';
-import { pngSize } from '../../electron/capture.js';
+import { captureComment, pngSize } from '../../electron/capture.js';
 
 const EDITOR_PREFIX = appUrl('src/editor/');
 const STAGE_URL = appUrl('src/stage/stage.html');
@@ -49,6 +52,28 @@ function writeTestAvatar(file) {
   fs.writeFileSync(file, nativeImage.createFromBitmap(bgra, { width, height }).toPNG());
 }
 
+/** A white PNG of width × height px at 1 bit per pixel: a few hundred KB, however big an image it declares. */
+function whitePng(width, height) {
+  const row = Buffer.alloc(1 + Math.ceil(width / 8), 0xff);
+  row[0] = 0; // no filter
+  const rows = Buffer.alloc(row.length * height);
+  for (let y = 0; y < height; y++) row.copy(rows, y * row.length);
+  const chunk = (type, data) => {
+    const body = Buffer.concat([Buffer.from(type, 'latin1'), data]);
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(zlib.crc32(body));
+    return Buffer.concat([length, body, crc]);
+  };
+  const header = Buffer.alloc(13); // bit depth 1, greyscale
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header[8] = 1;
+  return Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), chunk('IHDR', header),
+    chunk('IDAT', zlib.deflateSync(rows)), chunk('IEND', Buffer.alloc(0))]);
+}
+
 const rgbAt = (image, x, y) => {
   const { width } = image.getSize();
   const bgra = image.toBitmap();
@@ -76,7 +101,7 @@ async function run() {
   check(editor.getTitle() === 'YouTube Chat Comment', `window title "${editor.getTitle()}"`);
   const [minWidth, minHeight] = editor.getMinimumSize();
   check(minWidth === 960 && minHeight === 520, `minimum size ${minWidth}×${minHeight}`);
-  check(await js("Object.keys(window.ytComment).sort().join()") === 'capture,copy,getDisplayScale,onDisplayScaleChange,onMenuCommand,save,saveVideo',
+  check(await js("Object.keys(window.ytComment).sort().join()") === 'capture,copy,getDisplayScale,onDisplayScaleChange,onMenuCommand,openScreenshot,save,saveVideo',
     'window.ytComment exposes exactly its eight calls');
   check(await js('typeof require + typeof process + typeof module') === 'undefinedundefinedundefined', 'no Node.js globals in the editor');
   const displayScale = await js('ytComment.getDisplayScale()');
@@ -328,6 +353,299 @@ async function run() {
     avatarSrc: document.getElementById('avatar-thumb').src, memberBadgeSrc: null, timestamp: null, rowWidth: 5000, margin: -4 },
     { scale: 1 }).then((r) => r.width, (e) => e.message)`);
   check(capped === 1200 && recorded.clipboard.length === before + 1, `over-long text is capped and widths clamped (export width ${capped} px)`);
+
+  console.log('\n== Read a comment from a screenshot');
+  // Screenshots made by the app's own capture, which draws comments exactly as YouTube does.
+  const requests = [];
+  session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
+    requests.push(details.url);
+    callback({});
+  });
+  const avatarSrc = await js("document.getElementById('avatar-thumb').src");
+  const comment = (name, message, extra = {}) => ({ name, message, theme: 'dark', role: 'viewer', verified: false, avatarSrc,
+    memberBadgeSrc: null, timestamp: null, rowWidth: 400, margin: 0, ...extra });
+  const readStatus = () => js("document.getElementById('read-status').textContent");
+  const fields = async () => ({ name: await js("document.getElementById('name').value"), message: await js("document.getElementById('message').value") });
+  const same = (a, b) => a.name === b.name && a.message === b.message;
+  const readDone = (what) => poll(readStatus, (text) => !/^(Reading|Starting)/.test(text) && text !== '', 60_000, what);
+  const clearStatus = () => js("document.getElementById('read-status').textContent = ''");
+  const undoOffered = () => js("!document.getElementById('read-undo').hidden");
+  // Pastes the File that the page code `file` gives (as Ctrl+V does with a fresh snip on the clipboard).
+  const paste = (file, into = 'document.body') => js(`(async () => {
+    const data = new DataTransfer();
+    data.items.add(await ${file});
+    const event = new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true });
+    ${into}.dispatchEvent(event);
+    return event.defaultPrevented;
+  })()`);
+  const snip = (props, scale) => `ytComment.capture(${JSON.stringify(props)}, { scale: ${scale} })
+    .then((shot) => new File([shot.png], 'snip.png', { type: 'image/png' }))`;
+  // Real typing, clicks and keys (through the DevTools protocol): Chromium's focus, 'change' and undo handling
+  // follow only those. The window is hidden, so it is told it has the focus.
+  wc.debugger.attach('1.3');
+  const devtools = (method, params) => wc.debugger.sendCommand(method, params);
+  await devtools('Emulation.setFocusEmulationEnabled', { enabled: true });
+  const click = async (id) => {
+    const { x, y } = await js(`(() => { const r = document.getElementById('${id}').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+    for (const type of ['mousePressed', 'mouseReleased']) await devtools('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 });
+  };
+  const ctrlZ = async () => {
+    for (const type of ['rawKeyDown', 'keyUp']) await devtools('Input.dispatchKeyEvent', { type, modifiers: 2, windowsVirtualKeyCode: 90, key: 'z', code: 'KeyZ' });
+  };
+
+  // Typed in the message box, then a snip pasted there: as the box loses focus to the Undo button, Chromium
+  // sends it a 'change' for that typing, which must not take Undo away from under the pointer.
+  await js("(() => { const box = document.getElementById('message'); box.focus(); box.setSelectionRange(box.value.length, box.value.length); })()");
+  await devtools('Input.insertText', { text: ' and more' });
+  const typed = await fields();
+  const pasted = comment('@Night_Owl42', 'see you all at the next stream, bye chat!');
+  check(await paste(snip(pasted, 1.25), "document.getElementById('message')"), 'pasting an image (a fresh snip) into the message box reads it as a screenshot');
+  const pasteStatus = await readDone('reading the pasted screenshot');
+  check(/^Filled in the name and message/.test(pasteStatus), `status "${pasteStatus}"`);
+  const afterPaste = await fields();
+  check(same(afterPaste, pasted), `read ${JSON.stringify(afterPaste)} from a 1.25× screenshot`);
+  check(await js("(() => { const s = document.getElementById('read-status'); return s.classList.contains('read-status') && getComputedStyle(s).marginTop === '8px'; })()"),
+    'the status line keeps its own style (8 px below the hint)');
+  check(await undoOffered(), 'Undo is offered');
+  await click('read-undo');
+  const undone = await fields();
+  check(same(undone, typed), `clicking Undo puts back ${JSON.stringify(undone)}`);
+  check(await js("document.getElementById('read-undo').hidden && document.activeElement.id === 'read-screenshot'"), 'Undo then hides, and focus moves to the Read button');
+
+  const textPaste = await js(`(() => {
+    const data = new DataTransfer();
+    data.setData('text/plain', 'typed');
+    data.items.add(new File([new Uint8Array([1, 2, 3])], 'x.png', { type: 'image/png' }));
+    const event = new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true });
+    document.getElementById('name').dispatchEvent(event);
+    return event.defaultPrevented;
+  })()`);
+  check(!textPaste, 'pasting text into a field is left alone even when an image comes with it');
+  await clearStatus();
+
+  const opened = comment('@pixel.garden', 'how long have you been playing this game for', { theme: 'light', role: 'moderator', timestamp: '9:05\u202fPM' });
+  const shot = await captureComment(opened, { scale: 2 });
+  recorded.openFrom = path.join(OUT_DIR, 'read-screenshot.png');
+  fs.writeFileSync(recorded.openFrom, shot.png);
+  menuClick('read-screenshot');
+  const openStatus = await readDone('reading the opened screenshot');
+  const afterOpen = await fields();
+  check(/^Filled in/.test(openStatus) && same(afterOpen, opened),
+    `File > Read Comment from Screenshot… read ${JSON.stringify(afterOpen)} (light, moderator, timestamp, 2×)`);
+  const openOptions = recorded.dialogs.at(-1);
+  const [images, allFiles] = openOptions?.filters ?? [];
+  check(openOptions?.properties?.includes('openFile') && ['png', 'jpg', 'jfif'].every((ext) => images?.extensions.includes(ext))
+    && allFiles?.extensions.join() === '*', `the open dialog asks for one image file (${images?.extensions.join(', ')}) or offers All files`);
+  recorded.openFrom = null;
+  menuClick('read-screenshot');
+  await delay(300);
+  check((await fields()).name === opened.name && await readStatus() === openStatus, 'cancelling the open dialog changes nothing');
+  // Edit > Undo is Chromium's undo, which would replay the typing above in the replaced message box (changing
+  // nothing, and costing the Undo): it undoes the reading instead.
+  wc.undo();
+  await delay(200);
+  const afterMenuUndo = await fields();
+  check(same(afterMenuUndo, typed) && !await undoOffered(), `Edit > Undo undoes the reading: ${JSON.stringify(afterMenuUndo)}`);
+  await clearStatus();
+
+  const dropped = comment('@ana_k', 'first time here, loving the vibes');
+  // A drop does what the half on its side of the window says, from the gap between the halves to the margins.
+  const lit = await js(`(() => {
+    const data = new DataTransfer();
+    data.items.add(new File(['x'], 'x.png', { type: 'image/png' }));
+    const fire = (type, x, y) => document.body.dispatchEvent(new DragEvent(type, { dataTransfer: data, clientX: x, clientY: y, bubbles: true, cancelable: true }));
+    fire('dragenter', 5, 5);
+    const middle = innerWidth / 2;
+    const points = [[middle - 1, innerHeight / 2], [middle + 1, innerHeight / 2], [4, 4], [innerWidth - 4, innerHeight - 4], [middle / 2, innerHeight / 2], [middle * 1.5, innerHeight / 2]];
+    const lit = points.map(([x, y]) => {
+      fire('dragover', x, y);
+      return [...document.querySelectorAll('[data-drop].active')].map((target) => target.dataset.drop).join('+') || 'none';
+    });
+    fire('dragleave', 5, 5);
+    return lit.join(', ');
+  })()`);
+  check(lit === 'screenshot, avatar, screenshot, avatar, screenshot, avatar', `the half on the pointer's side lights up, gap and margins included (${lit})`);
+  const drop = (point) => js(`(async () => {
+    const data = new DataTransfer();
+    data.items.add(await ${snip(dropped, 1)});
+    const fire = (type, x, y) => document.body.dispatchEvent(new DragEvent(type, { dataTransfer: data, clientX: x, clientY: y, bubbles: true, cancelable: true }));
+    const [x, y] = ${point};
+    fire('dragenter', 5, 5);
+    fire('dragover', x, y);
+    const active = [...document.querySelectorAll('[data-drop].active')].map((target) => target.dataset.drop).join('+');
+    fire('drop', x, y);
+    return { active, hidden: document.getElementById('drop-overlay').hidden };
+  })()`);
+  const onScreenshot = await drop('[innerWidth / 2 - 1, 4]'); // between the halves, in the margin above them
+  check(onScreenshot.active === 'screenshot' && onScreenshot.hidden, 'dragging over the "Read the comment" side highlights it; dropping closes the overlay');
+  await readDone('reading the dropped screenshot');
+  const afterDrop = await fields();
+  check(same(afterDrop, dropped), `dropping there reads ${JSON.stringify(afterDrop)}`);
+  const avatarBefore = await js("document.getElementById('avatar-thumb').src");
+  await clearStatus();
+  const onAvatar = await drop('[innerWidth - 4, innerHeight - 4]'); // in the corner of the margin
+  await poll(() => js("document.getElementById('avatar-thumb').src"), (src) => src !== avatarBefore, 10_000, 'the dropped avatar');
+  check(onAvatar.active === 'avatar' && (await fields()).name === dropped.name, 'dropping on the "Use as avatar" side sets the avatar instead');
+
+  // In a Windows contrast theme (forced colours) only an outline and a solid border can mark the lit half.
+  await devtools('Emulation.setEmulatedMedia', { features: [{ name: 'forced-colors', value: 'active' }] });
+  const contrast = await js(`(() => {
+    const overlay = document.getElementById('drop-overlay');
+    const [on, off] = overlay.querySelectorAll('[data-drop]');
+    overlay.hidden = false;
+    on.classList.add('active');
+    const look = (target) => { const style = getComputedStyle(target); return style.borderTopStyle + ' border, ' + style.outlineStyle + ' outline'; };
+    const looks = { on: look(on), off: look(off) };
+    on.classList.remove('active');
+    overlay.hidden = true;
+    return looks;
+  })()`);
+  await devtools('Emulation.setEmulatedMedia', { features: [] });
+  check(contrast.on === 'solid border, solid outline' && contrast.off === 'dashed border, none outline',
+    `in a contrast theme the lit half has a ${contrast.on}, the other a ${contrast.off}`);
+
+  await clearStatus();
+  const blank = await js(`(async () => {
+    const canvas = new OffscreenCanvas(300, 60);
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#0f0f0f';
+    context.fillRect(0, 0, 300, 60);
+    const data = new DataTransfer();
+    data.items.add(new File([await canvas.convertToBlob()], 'blank.png', { type: 'image/png' }));
+    document.body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+    return true;
+  })()`);
+  const blankStatus = blank && await readDone('reading a blank image');
+  check(/No text|Couldn't find/.test(blankStatus) && (await fields()).name === dropped.name, `an image without a comment is refused: "${blankStatus}"`);
+  check(await undoOffered(), 'a read that fails leaves the last reading undoable');
+  // Ctrl+Z with the focus on a button: Chromium's own undo would act on the typing in the message box.
+  await js("document.getElementById('read-screenshot').focus()");
+  await ctrlZ();
+  const afterCtrlZ = await fields();
+  check(same(afterCtrlZ, typed) && !await undoOffered(), `Ctrl+Z undoes the last reading: ${JSON.stringify(afterCtrlZ)}`);
+
+  // A message that is only a channel's own emoji can't be read: the name is filled in, and the message kept.
+  const emote = await js(`(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 48;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#7b1fa2';
+    context.beginPath();
+    context.arc(24, 24, 22, 0, 2 * Math.PI);
+    context.fill();
+    return canvas.toDataURL();
+  })()`);
+  await clearStatus();
+  await paste(snip(comment('@member_fan', '🔥', { emojiOverrides: { '🔥': emote } }), 1.5));
+  const partStatus = await readDone('reading a comment whose message is an unknown emoji');
+  const afterPart = await fields();
+  check(partStatus.startsWith("Filled in the name from the screenshot. The message couldn't be read, so yours is kept.")
+    && afterPart.name === '@member_fan' && afterPart.message === typed.message, `status "${partStatus}"`);
+  const described = await js(`import('./screenshot.js').then(({ describeReading }) => [
+    describeReading({ name: '', message: 'hi' }),
+    describeReading({ name: '@a', message: 'hi', doubtful: ['one', 'two', 'one'] }),
+    describeReading({ name: '@a', message: 'hi', doubtful: ['w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'], warnings: ['The screenshot shows 2 comments; this is the first.'] }),
+  ])`);
+  check(described.join('\n') === [
+    "Filled in the message from the screenshot. The name couldn't be read, so yours is kept.",
+    'Filled in the name and message from the screenshot. Check “one”, “two”: hard to read.',
+    'Filled in the name and message from the screenshot. Check “w1”, “w2”, “w3”, “w4”, “w5” and 2 more: hard to read. The screenshot shows 2 comments; this is the first.',
+  ].join('\n'), `status lines say what was filled in and kept, and name up to five words to check:\n          ${described.join('\n          ')}`);
+
+  // A screenshot pasted while another is being read replaces it: the first is never filled in, so Undo goes
+  // back past both.
+  const beforeBoth = await fields();
+  const second = comment('@second_snip', 'this is the one that counts');
+  await clearStatus();
+  await js(`(async () => {
+    const files = await Promise.all([${snip(comment('@first_snip', 'this one gets cancelled'), 1.25)}, ${snip(second, 1.25)}]);
+    for (const file of files) {
+      const data = new DataTransfer();
+      data.items.add(file);
+      document.body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+    }
+  })()`);
+  const bothStatus = await readDone('reading two screenshots pasted at once');
+  const afterBoth = await fields();
+  check(/^Filled in the name and message/.test(bothStatus) && same(afterBoth, second), `of two screenshots pasted at once, the second is read: ${JSON.stringify(afterBoth)}`);
+  await click('read-undo');
+  const backPastBoth = await fields();
+  check(same(backPastBoth, beforeBoth), `the first was cancelled before it filled anything in: Undo goes back to ${JSON.stringify(backPastBoth)}`);
+
+  // The size limits come before any decoding: a file over 50 MB, and a small file that declares a huge image.
+  await clearStatus();
+  await paste(`new File([new Uint8Array(${50 * 1024 * 1024 + 1})], 'huge.png', { type: 'image/png' })`);
+  const hugeStatus = await readDone('reading a file over 50 MB');
+  check(hugeStatus === 'That file is too big to be a screenshot of a comment.', `a pasted file over 50 MB is refused: "${hugeStatus}"`);
+  await clearStatus();
+  await paste("new File(['not an image'], 'notes.png', { type: 'image/png' })");
+  const junkStatus = await readDone('reading a file that is no image');
+  check(/^That file isn't an image the app can open/.test(junkStatus), `a file that isn't an image is refused: "${junkStatus}"`);
+  const workingSet = () => app.getAppMetrics().find((m) => m.pid === wc.getOSProcessId())?.memory.workingSetSize ?? 0; // KB
+  for (const [width, height] of [[16000, 16000], [30000, 30000]]) {
+    const file = path.join(OUT_DIR, `read-${width}x${height}.png`);
+    fs.writeFileSync(file, whitePng(width, height));
+    await clearStatus();
+    const base = workingSet();
+    let peak = base;
+    const sample = setInterval(() => { peak = Math.max(peak, workingSet()); }, 20);
+    // Through the hidden file input: a file on disk, as a drop gives.
+    const { result } = await devtools('Runtime.evaluate', { expression: "document.getElementById('read-file')" });
+    await devtools('DOM.setFileInputFiles', { files: [file], objectId: result.objectId });
+    const text = await readDone(`reading a ${width} × ${height} px image`);
+    clearInterval(sample);
+    const grew = Math.round((peak - base) / 1024);
+    check(text === `That image is ${width} × ${height} px; crop it to the comment first.` && grew < 300,
+      `a ${Math.round(fs.statSync(file).size / 1024)} KB PNG of ${width} × ${height} px is refused before decoding (renderer +${grew} MB): "${text}"`);
+  }
+
+  // The open dialog's file is read up to the cap and no further: the size the file system reports isn't trusted.
+  const openFails = async (file) => {
+    recorded.openFrom = file;
+    await clearStatus();
+    menuClick('read-screenshot');
+    return readDone(`opening ${path.basename(file)}`);
+  };
+  const emptyFile = path.join(OUT_DIR, 'empty.png');
+  fs.writeFileSync(emptyFile, '');
+  const emptyStatus = await openFails(emptyFile);
+  check(emptyStatus === 'empty.png is empty.', `an empty file is refused: "${emptyStatus}"`);
+  const folderStatus = await openFails(OUT_DIR);
+  check(folderStatus === `${path.basename(OUT_DIR)} isn't a file the app can open.`, `a folder is refused: "${folderStatus}"`);
+  if (process.platform === 'win32') {
+    // A named pipe is a "file" of 0 bytes that never ends, as is \\wsl$\<distro>\dev\zero (and it hands over a
+    // little at a time).
+    let mostSent = 0;
+    const block = Buffer.alloc(64 * 1024);
+    const server = net.createServer((socket) => {
+      let sent = 0;
+      socket.on('error', () => {}); // the app hangs up once it has read enough
+      (function pump() {
+        while (sent < 200 * 1024 * 1024) {
+          sent += block.length;
+          mostSent = Math.max(mostSent, sent);
+          if (!socket.write(block)) {
+            socket.once('drain', pump);
+            return;
+          }
+        }
+        socket.end();
+      })();
+    });
+    const pipe = `\\\\.\\pipe\\youtube-comment-smoke-${process.pid}`;
+    await new Promise((resolve) => server.listen(pipe, resolve));
+    const pipeStatus = await openFails(pipe);
+    server.close();
+    check(pipeStatus === `${path.basename(pipe)} is too big to be a screenshot of a comment.` && mostSent < 60 * 1024 * 1024,
+      `an endless "file" is read no further than the 50 MB cap (${Math.round(mostSent / 1024 / 1024)} MB sent): "${pipeStatus}"`);
+  }
+  recorded.openFrom = null;
+  wc.debugger.detach();
+
+  // (app:// is served from file:// reads, which pass through here too.)
+  const offline = requests.filter((url) => !/^(app|file|data|blob):/.test(url) && !url.startsWith('https://fonts.gstatic.com/'));
+  check(offline.length === 0, `reading screenshots needs no network (${offline.length ? offline.join(', ') : `${requests.length} requests, all local or emoji`})`);
+  session.defaultSession.webRequest.onBeforeRequest(null);
 
   console.log('\n== Navigation and pop-ups');
   check(await js("window.open('https://example.com/') === null"), 'window.open is denied');

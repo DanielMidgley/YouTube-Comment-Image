@@ -442,28 +442,60 @@ input[type="range"] {
 
 /* ---- Drag and drop -------------------------------------------------------------------------------- */
 
+/* Two halves: drop on one to read the screenshot, on the other to use the picture as the avatar. Events go
+   through to the page (pointer-events: none); editor.js picks the half by the side of the window the pointer
+   is on, so the gap and the margins count too. */
 .drop-overlay {
   position: fixed;
   inset: 0;
   z-index: 10;
   display: grid;
-  place-items: center;
-  background: rgba(12, 14, 18, 0.72);
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 24px;
+  background: rgba(12, 14, 18, 0.8);
   pointer-events: none;
 }
 
-.drop-overlay div {
-  padding: 28px 36px;
-  border: 2px dashed var(--accent);
+.drop-target {
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  padding: 24px;
+  border: 2px dashed var(--border-strong);
   border-radius: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.drop-target strong {
   color: var(--text);
   font-size: 16px;
   font-weight: 500;
 }
 
+.drop-target.active {
+  border-color: var(--accent);
+  background: rgba(138, 180, 248, 0.08);
+}
+
+.drop-target.active span { color: var(--text); }
+
+.read-status:empty { display: none; }
+
+.read-status { margin-top: 8px; }
+
 /* Windows contrast themes (forced colours): box-shadows and backgrounds are dropped there, so mark the
-   selected segment and swatch with an outline, and keep the swatches' own colours. */
+   selected segment and swatch, and the drop half the pointer is over, with an outline, and keep the swatches'
+   own colours. */
 @media (forced-colors: active) {
+  .drop-target.active {
+    border-style: solid;
+    border-color: Highlight;
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+
   .segmented input:checked + span {
     outline: 2px solid Highlight;
     outline-offset: -2px;

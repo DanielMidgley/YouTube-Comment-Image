@@ -1,5 +1,5 @@
 // Imported by test/smoke/app.js before electron/main.js: runs the real app in a throwaway profile with the
-// editor kept hidden, and swaps the OS side effects (save dialog, clipboard) for recorders.
+// editor kept hidden, and swaps the OS side effects (save and open dialogs, clipboard) for recorders.
 import { app, clipboard, dialog } from 'electron';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -27,6 +27,7 @@ export const recorded = {
   saveTo: path.join(OUT_DIR, 'app-save.png'),
   saveVideoTo: path.join(OUT_DIR, 'app-save.mp4'),
   cancelNextSave: false,
+  openFrom: null, // the file the open dialog "chooses" (null: the user cancels)
   dialogs: [],
   clipboard: [],
   console: [],
@@ -40,6 +41,11 @@ dialog.showSaveDialog = async (_window, options) => {
   }
   const video = options?.filters?.[0]?.extensions?.[0] === 'mp4';
   return { canceled: false, filePath: video ? recorded.saveVideoTo : recorded.saveTo };
+};
+
+dialog.showOpenDialog = async (_window, options) => {
+  recorded.dialogs.push(options);
+  return recorded.openFrom ? { canceled: false, filePaths: [recorded.openFrom] } : { canceled: true, filePaths: [] };
 };
 
 clipboard.writeImage = (image) => { recorded.clipboard.push(image); };

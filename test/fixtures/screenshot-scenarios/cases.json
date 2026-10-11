@@ -1,0 +1,128 @@
+[
+ {
+  "file": "emoji-only-no-avatar-dark-1x.png",
+  "about": "a short name and only emoji, the avatar left out",
+  "scale": 1,
+  "name": "@kai",
+  "message": "😂😂😂😂"
+ },
+ {
+  "file": "emoji-with-loose-bits-dark-2x.png",
+  "about": "emoji whose motion lines are separate pieces, after an all-caps name",
+  "scale": 2,
+  "name": "@TOMMY",
+  "message": "👏👏👏👏👏👏"
+ },
+ {
+  "file": "drawn-out-caps-dark-1_25x.png",
+  "about": "a drawn-out word in capitals (OCR mixes O and 0)",
+  "scale": 1.25,
+  "name": "@quietotter42",
+  "message": "LETS GOOOOOOO"
+ },
+ {
+  "file": "drawn-out-small-light-1_25x.png",
+  "about": "a drawn-out word in small letters (OCR mixes cases)",
+  "scale": 1.25,
+  "name": "@quietotter42",
+  "message": "yessssssss"
+ },
+ {
+  "file": "drawn-out-o-dark-1_5x.png",
+  "about": "a run of O read as zeros",
+  "scale": 1.5,
+  "name": "@quietotter42",
+  "message": "SOOOO GOOD"
+ },
+ {
+  "file": "trailing-mark-light-1_25x.png",
+  "about": "a word ending in a mark (no face made of it)",
+  "scale": 1.25,
+  "name": "@quietotter42",
+  "message": "greetings from Portugal!"
+ },
+ {
+  "file": "zoom-110-light.png",
+  "about": "browser zoom at 110%: no common display scale",
+  "scale": 1.1,
+  "name": "@quietotter42",
+  "message": "the bass on this one is unreal and the drums are perfect too"
+ },
+ {
+  "file": "speck-above-dark-1x.png",
+  "about": "a stray pixel above the comment",
+  "scale": 1,
+  "name": "@quietotter42",
+  "message": "what song is this?"
+ },
+ {
+  "file": "owner-chip-over-emoji-dark-1_5x.png",
+  "about": "an owner chip touching the emoji on the next line",
+  "scale": 1.5,
+  "name": "@CopperOrbitMusic",
+  "message": "thanks everyone 🙏🙏🙏🙏"
+ },
+ {
+  "file": "cut-owner-above-dark-1_5x.png",
+  "about": "the comment above, an owner, cut by the top edge",
+  "scale": 1.5,
+  "name": "@quietotter42",
+  "message": "what song is this?"
+ },
+ {
+  "file": "pale-emoji-light-1_5x.png",
+  "about": "pale emoji that fall apart on the light theme, on a line of their own",
+  "scale": 1.5,
+  "name": "@quietotter42",
+  "message": "💀💀💀💀💀💀💀💀💀💀💀💀💀💀"
+ },
+ {
+  "file": "lone-capital-i-light-1x.png",
+  "about": "a capital I on its own, which Tesseract leaves out",
+  "scale": 1,
+  "name": "@quietotter42",
+  "message": "can I join"
+ },
+ {
+  "file": "name-under-timestamp-light-1_5x.png",
+  "about": "a name too long to fit beside the timestamp",
+  "scale": 1.5,
+  "name": "@abcdefghijklmnopqrstuvwxyz12",
+  "message": "first time catching one of these live"
+ },
+ {
+  "file": "lone-i-after-short-word-dark-1x.png",
+  "about": "a lone I after a short word",
+  "scale": 1,
+  "name": "@quietotter42",
+  "message": "ok I see"
+ },
+ {
+  "file": "digit-before-emoji-dark-2x.png",
+  "about": "a 1 right before an emoji (its side bearing is wide)",
+  "scale": 2,
+  "name": "@quietotter42",
+  "message": "+1👍 nice"
+ },
+ {
+  "file": "white-emoji-light-1_5x.png",
+  "about": "a white emoji on the light theme, after a space",
+  "scale": 1.5,
+  "name": "@quietotter42",
+  "message": "this is it 🤍 so good"
+ },
+ {
+  "file": "jpeg-ringing-light-1x.png",
+  "about": "a snip saved as JPEG at quality 70, whose ringing narrows the spaces between words",
+  "scale": 1,
+  "name": "@lanternfox",
+  "message": "turn the vocals up a little please"
+ },
+ {
+  "file": "jpeg-ringing-dark-1_25x.png",
+  "about": "a dark-theme snip saved as JPEG at quality 75, whose ringing narrows the spaces between words",
+  "scale": 1.25,
+  "name": "@maple_ferret",
+  "message": "the drums in this part are so good"
+ }
+]

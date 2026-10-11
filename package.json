@@ -9,8 +9,9 @@
   "main": "electron/main.js",
   "scripts": {
     "start": "node scripts/electron.js .",
-    "test": "node --test \"test/unit/**/*.test.js\"",
+    "test": "node --test \"test/unit/**/*.test.js\" \"test/screenshots/*.test.js\"",
     "test:visual": "node scripts/electron.js test/visual/golden.js",
+    "test:screenshots": "node scripts/electron.js test/screenshots/evaluate.js",
     "dist": "electron-builder --win"
   },
   "devDependencies": {
@@ -30,7 +31,14 @@
     "files": [
       "electron/**/*",
       "src/**/*",
-      "package.json"
+      "package.json",
+      "!node_modules/tesseract.js/{src,docs,scripts}/**",
+      "!node_modules/tesseract.js/dist/{tesseract.min.js,*.map}",
+      "!node_modules/tesseract.js-core/*.wasm",
+      "!node_modules/tesseract.js-core/tesseract-core{,-simd,-relaxedsimd}{,-lstm}.js",
+      "!node_modules/tesseract.js-core/tesseract-core{,-simd,-relaxedsimd}.wasm.js",
+      "!node_modules/@tesseract.js-data/eng/4.0.0/**",
+      "!node_modules/{bmp-js,idb-keyval,is-url,node-fetch,opencollective-postinstall,regenerator-runtime,tr46,wasm-feature-detect,webidl-conversions,whatwg-url,zlibjs}/**"
     ],
     "win": {
       "target": [
@@ -56,6 +64,8 @@
     }
   },
   "dependencies": {
-    "mediabunny": "^1.61.0"
+    "@tesseract.js-data/eng": "^1.0.0",
+    "mediabunny": "^1.61.0",
+    "tesseract.js": "^7.0.0"
   }
 }
