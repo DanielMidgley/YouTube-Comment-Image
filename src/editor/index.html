@@ -193,6 +193,20 @@
       </div>
       <div class="preview-error" id="preview-error" role="alert" hidden></div>
     </div>
+    <section class="premiere" id="premiere" aria-labelledby="premiere-title" hidden>
+      <div class="premiere-info">
+        <h2 id="premiere-title">From Premiere Pro <span id="premiere-label" class="premiere-label"></span></h2>
+        <p id="premiere-status" class="status" role="status" aria-live="polite"></p>
+      </div>
+      <label class="check">
+        <input id="premiere-avatar" type="checkbox" checked>
+        <span>Avatar from the video</span>
+      </label>
+      <span id="premiere-scale" class="note"></span>
+      <button type="button" id="premiere-cancel" class="button ghost">Cancel</button>
+      <button type="button" id="premiere-video" class="button">Send typing video</button>
+      <button type="button" id="premiere-image" class="button primary">Send image</button>
+    </section>
     <footer class="export-bar" aria-label="Export">
       <div class="export-info">
         <span id="export-size">Rendering…</span>

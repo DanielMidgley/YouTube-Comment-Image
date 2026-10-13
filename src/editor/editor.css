@@ -354,7 +354,7 @@ input[type="range"] {
 
 .preview {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto auto; /* the preview, the Premiere Pro bar (when shown), the export bar */
   min-width: 0;
   min-height: 0;
 }
@@ -438,6 +438,40 @@ input[type="range"] {
 
 #export-size { color: var(--text); }
 .note:empty { display: none; }
+
+/* A comment from the Premiere Pro panel, waiting to be checked and sent back: above the export bar, only then. */
+.premiere {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border-top: 2px solid var(--accent);
+}
+
+.premiere[hidden] { display: none; }
+
+.premiere-info {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.premiere h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.premiere-label {
+  margin-left: 6px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.premiere .status { margin: 2px 0 0; }
+.premiere .check { margin: 0; color: var(--muted); }
+.premiere .button { min-height: 34px; padding: 6px 16px; }
 .note.warn { color: #fdd663; }
 
 /* ---- Drag and drop -------------------------------------------------------------------------------- */

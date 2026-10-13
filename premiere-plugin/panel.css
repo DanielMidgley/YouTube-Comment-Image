@@ -1,0 +1,57 @@
+/* The panel follows Premiere Pro's own colours (UXP's host variables), with fallbacks for its dark theme. */
+body {
+  margin: 0;
+  color: var(--uxp-host-text-color, #d6d6d6);
+  background-color: var(--uxp-host-background-color, #232323);
+  font-size: var(--uxp-host-font-size, 12px);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 4px 0;
+}
+
+.row > * { margin: 0 8px 4px 0; }
+
+.note {
+  margin: 4px 0 6px;
+  color: var(--uxp-host-text-color-secondary, #a0a0a0);
+}
+
+/* The frame (or the part zoomed into), as wide as the panel; the box drawn over it. */
+.stage {
+  position: relative;
+  overflow: hidden;
+  margin: 6px 0 2px;
+  background-color: #000;
+  cursor: crosshair;
+}
+
+.frame {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.box {
+  position: absolute;
+  border: 2px solid #2d9cff;
+  background-color: rgba(45, 156, 255, 0.12);
+}
+
+.status {
+  min-height: 36px;
+  margin: 4px 0;
+}
+
+.status.ok { color: #6fcf7f; }
+.status.error { color: #ff7b72; }
+

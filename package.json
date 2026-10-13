@@ -12,7 +12,8 @@
     "test": "node --test \"test/unit/**/*.test.js\" \"test/screenshots/*.test.js\"",
     "test:visual": "node scripts/electron.js test/visual/golden.js",
     "test:screenshots": "node scripts/electron.js test/screenshots/evaluate.js",
-    "dist": "electron-builder --win"
+    "dist": "electron-builder --win",
+    "dist:premiere": "node scripts/package-premiere-plugin.js"
   },
   "devDependencies": {
     "electron": "^44.5.1",

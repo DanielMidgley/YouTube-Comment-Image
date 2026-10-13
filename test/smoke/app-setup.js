@@ -22,6 +22,9 @@ for (const entry of fs.readdirSync(os.tmpdir())) {
 }
 app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), PROFILE_PREFIX)));
 process.env.YT_COMMENT_HIDDEN = '1';
+// The Premiere Pro link on a port of its own: a copy of the app the user has open keeps the usual ones.
+export const BRIDGE_PORT = 47900 + (process.pid % 400);
+process.env.YT_COMMENT_BRIDGE_PORT = String(BRIDGE_PORT);
 
 export const recorded = {
   saveTo: path.join(OUT_DIR, 'app-save.png'),

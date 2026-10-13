@@ -109,7 +109,8 @@ until you change the name or message yourself.
   å, ç…) by the shape of the accent.
 - Text recognition runs on your computer ([Tesseract.js](https://github.com/naptha/tesseract.js) with its
   English model, bundled with the app); nothing is uploaded.
-- Only the name and message are filled in. Theme, role, timestamp and the rest stay as you set them.
+- Only the name and message are filled in. Theme, role, timestamp and the rest stay as you set them (a
+  comment read for the Premiere Pro panel, below, matches those to the video too).
 
 Every word is checked against the width it takes up in the screenshot (the app knows exactly how wide
 YouTube draws each letter), which fixes most look-alike mistakes (`VVV` read as `VWV`, a miscounted
@@ -125,6 +126,57 @@ send, say) loses the detail it relies on: about half of those come back exactly.
 125 % only four accents (´ ` ¨ ˚) are told apart, and below 150 % curly quotes (’ “ ”) and the
 ellipsis (…) look too much like ' " and ... to tell apart, so they come back as the straight ones. Comments
 under videos (not live chat) and phone screenshots aren't supported.
+
+## Premiere Pro panel
+
+A panel for Premiere Pro (version 26.5 or later) sends a chat comment from a frame of your video to the app,
+and puts what the app makes of it on the timeline at that point. The app works the same without it.
+The panel is not affiliated with Adobe.
+
+**Install it.** `npm run dist:premiere` writes `dist/YouTube-Chat-Comment-Premiere-1.0.0.ccx`. Double-click it:
+Creative Cloud asks whether to install a plugin from outside its marketplace (**Install**), then lists what
+the plugin may do (it writes the comment's file into a folder beside your project, and talks to the app on
+this computer). In Premiere Pro, open **Window > UXP Plugins > YouTube Chat Comment**. To remove it, use
+**Manage plugins** in Creative Cloud (Stock & Marketplace > Plugins).
+
+**Use it.**
+
+1. Open the YouTube Chat Comment app: the panel works through it.
+2. In Premiere Pro, save the project (the comment's file is kept beside it), pause on a frame with a chat
+   comment in it and click **Grab frame**.
+3. Drag a box around one comment, avatar and all. **Zoom to box** shows that part larger, to draw the box
+   more closely; **Whole frame** goes back.
+4. Click **Read comment**. The app comes to the front with the name and message filled in, and the rest
+   matched to the video: its theme, the author's role, the comment's timestamp (or none, if it has none), a
+   member's badge cut from the frame, and the avatar from the video (untick **Avatar from the video** for your
+   own). Check it, then click **Send image** or **Send typing video** in its Premiere Pro bar. It is rendered
+   at the export bar's **Scale**, as Save PNG is (up to 3×); the video's resolution has nothing to do with it.
+   Undo in the app puts back what you had before.
+5. The panel saves the file in a `YouTube Chat Comments` folder beside the project, imports it into a bin of
+   that name, and puts it at the frame's time on the first empty video track above the picture (or on a new
+   track: never on a hidden track, and never over another clip). It goes on at its own size (Scale 100%), in
+   the middle of the frame where Premiere Pro puts new clips: move and scale it as you like. Putting it on
+   the timeline is one step of Undo in Premiere Pro; if Premiere Pro changes anything else on the way, the
+   panel says so, and Ctrl+Z there undoes it.
+
+Worth knowing:
+
+- Reading works best on frames that show the chat at the size it was recorded at: a comment in a video that
+  was scaled down (a 1440p recording in a 1080p sequence, say) is as hard to read as a resized screenshot.
+- The comment has the chat's own background (dark or light), not a see-through one.
+- Line breaks follow the app's **Comment width**: if a long comment wraps differently from the video, set it
+  to the chat's width there, then click **Read comment** in the panel again (the box is still drawn) and
+  send the new one; delete the first from the timeline. (A new reading fills in the name and message again;
+  Undo in the app brings back the ones you corrected.)
+- If Premiere Pro's **Preferences > Media > Default Media Scaling** is set to scale stills to the frame, the
+  panel puts the clip's Scale back to 100%. Its "Scale to frame size" setting resizes the clip in a way the
+  panel can't see: set the preference to None if a comment comes out the wrong size.
+- The panel and the app talk over `http://localhost` (ports 47811 to 47813), which nothing outside this
+  computer can reach, and the app refuses any request from a web page.
+- For working on the panel: its files are in `premiere-plugin/`. Adobe's UXP Developer Tool can load the
+  folder directly (with **Preferences > Plugins > Enable developer mode** ticked in Premiere Pro); otherwise
+  rebuild and reinstall the `.ccx`. What the panel logs goes to
+  `%APPDATA%\Adobe\Premiere Pro\Logs\UXPLogs_*.log`, each line starting `[YouTube Chat Comment]`.
 
 ## How it stays faithful
 
@@ -159,8 +211,12 @@ The comment is real YouTube markup styled by YouTube's own CSS, not an imitation
 - `node scripts/electron.js test/smoke/capture.js`: the capture pipeline (sizes at every scale, queueing,
   timeouts, crash recovery).
 - `node scripts/electron.js test/smoke/app.js`: the whole app, run hidden: editing, saving, copying, a
-  typing video (checked by reading the MP4 back), reading screenshots (pasted, opened and dropped), restoring
-  saved settings, and the security checks.
+  typing video (checked by reading the MP4 back), reading screenshots (pasted, opened and dropped), a comment
+  sent from a video frame the way the Premiere Pro panel sends it (and the PNG and typing video sent back at
+  the chosen Scale), restoring saved settings, and the security checks.
+- `npm test` also checks the Premiere Pro panel's side outside Premiere Pro: the link to the app (both ends,
+  `test/unit/premiere-bridge.test.js`), the panel's arithmetic, and its `.ccx` package
+  (`test/unit/premiere-plugin.test.js`). What it does inside Premiere Pro is tested by hand.
 - `node scripts/electron.js test/smoke/ocr.js`: text recognition in the app's renderer, offline and under
   its Content-Security-Policy. `node scripts/electron.js test/smoke/emoji-match.js`: emoji recognition on
   renders of YouTube's emoji at seven scales, JPEG-compressed and resized too, and that avatars, badges,
@@ -194,6 +250,7 @@ src/stage/      the page the comment is rendered (and captured) in
 src/comment/    markup, emoji, badges and avatars
 src/screenshot/ reading a comment from a screenshot: layout analysis, OCR, emoji matching
 src/styles/     YouTube's chat CSS and the Roboto font faces
+premiere-plugin/ the Premiere Pro panel (a UXP plugin); electron/premiere-bridge.js is the app's end of it
 test/           unit tests, smoke tests, the visual golden test and the screenshot corpus
 docs/           the images in this README
 ```

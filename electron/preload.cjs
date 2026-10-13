@@ -26,4 +26,12 @@ contextBridge.exposeInMainWorld('ytComment', {
   onDisplayScaleChange: (callback) => subscribe('display:scale-changed', callback),
   /** 'save' | 'copy' | 'video' | 'read-screenshot', from the application menu and its shortcuts. */
   onMenuCommand: (callback) => subscribe('menu:command', callback),
+  /** A frame from the Premiere Pro panel to read: { id, label, image } (the PNG of the box drawn in it). */
+  onPremiereJob: (callback) => subscribe('premiere:job', callback),
+  /** The panel's side of a job: { id, state: 'cancelled' } or { id, state: 'placed', message }. */
+  onPremiereUpdate: (callback) => subscribe('premiere:update', callback),
+  /** Tells the panel how its job is going ('review', 'rendering', 'failed', 'cancelled') → false if it moved on. */
+  premiereStatus: (id, state, message) => ipcRenderer.invoke('premiere:status', id, state, message),
+  /** Hands the panel the finished file: { kind: 'png' | 'mp4', bytes, width, height, duration?, name }. */
+  premiereDeliver: (id, file) => ipcRenderer.invoke('premiere:deliver', id, file),
 });

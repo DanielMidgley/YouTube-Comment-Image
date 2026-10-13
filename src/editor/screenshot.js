@@ -17,11 +17,12 @@ let idleTimer = 0;
 let running = 0;
 
 /**
- * Reads the comment in `blob` (an image file). Resolves to readComment()'s result; rejects with an Error whose
- * message is meant for the user. onProgress(text) reports slow steps (starting the recognizer). Aborting
- * `signal` rejects with its reason, at once if the read is waiting for the text recognition.
+ * Reads the comment in `blob` (an image file), its timestamp too if asked (`timestamp`). Resolves to
+ * readComment()'s result; rejects with an Error whose message is meant for the user. onProgress(text) reports
+ * slow steps (starting the recognizer). Aborting `signal` rejects with its reason, at once if the read is
+ * waiting for the text recognition.
  */
-export async function readScreenshot(blob, { onProgress, signal } = {}) {
+export async function readScreenshot(blob, { onProgress, signal, timestamp = false } = {}) {
   signal?.throwIfAborted();
   const image = await decode(blob);
   signal?.throwIfAborted();
@@ -35,7 +36,7 @@ export async function readScreenshot(blob, { onProgress, signal } = {}) {
     // Cancelling lets the worker go (see cancellable), unless another read is using it too.
     const stop = () => { if (running === 1) stopRecognizer(starting); };
     const recognize = (grey, options) => cancellable(ocr.recognize(grey, options), signal, stop);
-    return await readComment(image, { recognize, signal });
+    return await readComment(image, { recognize, signal, timestamp });
   } finally {
     if (!--running) idleTimer = setTimeout(stopRecognizer, IDLE_MS);
   }
@@ -57,6 +58,46 @@ export function describeReading({ name, message, doubtful = [], warnings = [] })
     notes.push(`Check ${named}${more > 0 ? ` and ${more} more` : ''}: hard to read.`);
   }
   return [...notes, ...warnings].join(' ');
+}
+
+/**
+ * The avatar of the comment `reading` read from `screenshot` (a Blob), as a PNG Blob for prepareAvatar(): the
+ * 24 CSS px square around the avatar the reader found. Null when it found none, or one the image's edge cuts.
+ */
+export async function avatarOf(screenshot, reading) {
+  const box = reading.geometry?.avatar;
+  const size = Math.round(24 * reading.scale);
+  // (The ink can fall short of the circle where the picture is close to the chat's background, never by much.)
+  if (!box || size < 8 || box.width < 0.7 * size || box.height < 0.7 * size) return null;
+  return cropSquare(screenshot, box, size);
+}
+
+/**
+ * The member's badge in the comment `reading` read from `screenshot` (a Blob), as a PNG Blob for prepareBadge():
+ * the 16 CSS px square around the last badge after the name. Null for anyone but a member, or without a whole
+ * badge in the image.
+ */
+export async function badgeOf(screenshot, reading) {
+  if (reading.role !== 'member') return null;
+  const size = Math.round(16 * reading.scale);
+  const box = (reading.geometry?.badges ?? []).filter((b) => b.width >= 0.6 * size && b.height >= 0.6 * size).at(-1);
+  if (!box || size < 8) return null;
+  return cropSquare(screenshot, box, size);
+}
+
+/** The `size` px square around the centre of `box` in `screenshot`, as a PNG Blob; null where the image ends first. */
+async function cropSquare(screenshot, box, size) {
+  const x = Math.round(box.x + box.width / 2 - size / 2);
+  const y = Math.round(box.y + box.height / 2 - size / 2);
+  const bitmap = await createImageBitmap(screenshot);
+  try {
+    if (x < 0 || y < 0 || x + size > bitmap.width || y + size > bitmap.height) return null;
+    const canvas = new OffscreenCanvas(size, size);
+    canvas.getContext('2d').drawImage(bitmap, x, y, size, size, 0, 0, size, size);
+    return await canvas.convertToBlob({ type: 'image/png' });
+  } finally {
+    bitmap.close();
+  }
 }
 
 /** The image's pixels (on white, so a transparent PNG still has a background). */

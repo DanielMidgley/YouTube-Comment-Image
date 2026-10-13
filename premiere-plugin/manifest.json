@@ -1,0 +1,35 @@
+{
+  "id": "com.danielmidgley.youtube-chat-comment",
+  "name": "YouTube Chat Comment",
+  "version": "1.0.0",
+  "main": "index.html",
+  "manifestVersion": 5,
+  "host": {
+    "app": "premierepro",
+    "minVersion": "26.5.0"
+  },
+  "requiredPermissions": {
+    "network": {
+      "domains": ["http://localhost:47811", "http://localhost:47812", "http://localhost:47813"]
+    },
+    "localFileSystem": "fullAccess"
+  },
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "commentPanel",
+      "label": { "default": "YouTube Chat Comment" },
+      "minimumSize": { "width": 260, "height": 320 },
+      "maximumSize": { "width": 2000, "height": 2000 },
+      "preferredDockedSize": { "width": 340, "height": 560 },
+      "preferredFloatingSize": { "width": 520, "height": 640 },
+      "icons": [
+        { "width": 23, "height": 23, "path": "icons/panel-dark.svg", "scale": [1, 2], "theme": ["darkest", "dark", "medium"] },
+        { "width": 23, "height": 23, "path": "icons/panel-light.svg", "scale": [1, 2], "theme": ["lightest", "light"] }
+      ]
+    }
+  ],
+  "icons": [
+    { "width": 48, "height": 48, "path": "icons/plugin.svg", "scale": [1, 2], "theme": ["all"], "species": ["pluginList"] }
+  ]
+}

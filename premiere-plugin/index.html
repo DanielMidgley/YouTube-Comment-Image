@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <main class="panel">
+    <p id="connection" class="note">Looking for the YouTube Chat Comment app…</p>
+
+    <div class="row">
+      <sp-button id="grab" variant="cta">Grab frame</sp-button>
+      <sp-button id="zoom" variant="secondary" disabled>Zoom to box</sp-button>
+      <sp-button id="whole" variant="secondary" quiet disabled>Whole frame</sp-button>
+    </div>
+
+    <div id="stage" class="stage" style="display: none">
+      <img id="frame" class="frame" alt="The frame at the playhead">
+      <div id="box" class="box" style="display: none"></div>
+    </div>
+    <p id="hint" class="note">Pause on a frame with a chat comment in it, then grab the frame.</p>
+
+    <div class="row">
+      <sp-button id="read" variant="cta" disabled>Read comment</sp-button>
+      <sp-button id="cancel" variant="secondary" quiet style="display: none">Cancel</sp-button>
+    </div>
+    <p id="status" class="status" role="status"></p>
+  </main>
+  <script src="panel.js"></script>
+</body>
+</html>

@@ -2,9 +2,10 @@
 // Starts electron/main.js (editor hidden, throwaway profile, recorded save dialog and clipboard), waits for
 // the editor and its live preview, then drives it like a user: File > Save PNG… and Copy Image through the
 // menu, scale/theme changes, an avatar upload through the file input, a typing video, reading a comment from a
-// screenshot (paste, File > Read Comment, drop; Undo, cancelling, size limits), invalid IPC input, blocked
-// navigation. Fails on any console error or warning from the editor (and errors from the capture window).
-import { OUT_DIR, recorded } from './app-setup.js'; // must stay the first import
+// screenshot (paste, File > Read Comment, drop; Undo, cancelling, size limits), the Premiere Pro panel's side
+// of a comment sent from a frame (over HTTP, as the panel sends it), invalid IPC input, blocked navigation.
+// Fails on any console error or warning from the editor (and errors from the capture window).
+import { BRIDGE_PORT, OUT_DIR, recorded } from './app-setup.js'; // must stay the first import
 import '../../electron/main.js';
 import { app, BrowserWindow, Menu, nativeImage, session } from 'electron';
 import fs from 'node:fs';
@@ -13,6 +14,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { appUrl } from '../../electron/protocol.js';
 import { captureComment, pngSize } from '../../electron/capture.js';
+import { HEADER, PROTOCOL } from '../../electron/premiere-bridge.js';
 
 const EDITOR_PREFIX = appUrl('src/editor/');
 const STAGE_URL = appUrl('src/stage/stage.html');
@@ -74,6 +76,19 @@ function whitePng(width, height) {
     chunk('IDAT', zlib.deflateSync(rows)), chunk('IEND', Buffer.alloc(0))]);
 }
 
+/** A width × height frame of a video in `rgb`, with the PNG `png` (if any) drawn at `at`: as a PNG. */
+function videoFrame(width, height, rgb, png = null, at = { x: 0, y: 0 }) {
+  const frame = Buffer.alloc(width * height * 4);
+  for (let i = 0; i < frame.length; i += 4) frame.set([rgb[2], rgb[1], rgb[0], 255], i); // BGRA
+  if (png) {
+    const image = nativeImage.createFromBuffer(png);
+    const { width: w, height: h } = image.getSize();
+    const bitmap = image.toBitmap();
+    for (let y = 0; y < h; y++) bitmap.copy(frame, ((at.y + y) * width + at.x) * 4, y * w * 4, (y + 1) * w * 4);
+  }
+  return nativeImage.createFromBitmap(frame, { width, height }).toPNG();
+}
+
 const rgbAt = (image, x, y) => {
   const { width } = image.getSize();
   const bgra = image.toBitmap();
@@ -101,8 +116,10 @@ async function run() {
   check(editor.getTitle() === 'YouTube Chat Comment', `window title "${editor.getTitle()}"`);
   const [minWidth, minHeight] = editor.getMinimumSize();
   check(minWidth === 960 && minHeight === 520, `minimum size ${minWidth}×${minHeight}`);
-  check(await js("Object.keys(window.ytComment).sort().join()") === 'capture,copy,getDisplayScale,onDisplayScaleChange,onMenuCommand,openScreenshot,save,saveVideo',
-    'window.ytComment exposes exactly its eight calls');
+  check(await js("Object.keys(window.ytComment).sort().join()")
+    === 'capture,copy,getDisplayScale,onDisplayScaleChange,onMenuCommand,onPremiereJob,onPremiereUpdate,openScreenshot,premiereDeliver,premiereStatus,save,saveVideo',
+    'window.ytComment exposes exactly its twelve calls');
+  check(await js("document.getElementById('premiere').hidden"), 'the Premiere Pro bar stays hidden until the panel sends a comment');
   check(await js('typeof require + typeof process + typeof module') === 'undefinedundefinedundefined', 'no Node.js globals in the editor');
   const displayScale = await js('ytComment.getDisplayScale()');
   check(typeof displayScale === 'number' && displayScale > 0, `getDisplayScale() → ${displayScale}`);
@@ -640,6 +657,162 @@ async function run() {
       `an endless "file" is read no further than the 50 MB cap (${Math.round(mostSent / 1024 / 1024)} MB sent): "${pipeStatus}"`);
   }
   recorded.openFrom = null;
+
+  console.log('\n== Premiere Pro panel');
+  {
+    // The panel's side (premiere-plugin/), over HTTP as the panel speaks it: the frame at the playhead with a box
+    // drawn around a comment; the editor reads it, the user checks it and sends it back, the panel fetches it.
+    const bridge = `http://localhost:${BRIDGE_PORT}`; // as the panel says it (see electron/premiere-bridge.js)
+    const ask = async (route, { method = 'GET', body, type } = {}) => {
+      const response = await fetch(`${bridge}${route}`, { method, body, headers: { [HEADER]: String(PROTOCOL), ...(type ? { 'content-type': type } : {}) } });
+      const bytes = Buffer.from(await response.arrayBuffer());
+      let json = null;
+      try {
+        json = JSON.parse(bytes.toString('utf8'));
+      } catch {
+        // a file
+      }
+      return { status: response.status, type: response.headers.get('content-type'), bytes, json };
+    };
+    const hello = await ask('/v1/hello');
+    check(hello.status === 200 && hello.json?.app === 'YouTube Chat Comment' && hello.json.protocol === PROTOCOL, `the app answers the panel on port ${BRIDGE_PORT}`);
+    check((await fetch(`${bridge}/v1/hello`)).status === 403, 'and nothing that lacks its header');
+    const sendFrame = (frame, rect, label = 'Sequence 01 at 00:00:05:00') => ask(
+      `/v1/jobs?${new URLSearchParams({ ...Object.fromEntries(Object.entries(rect).map(([k, v]) => [k, String(v)])), label })}`,
+      { method: 'POST', body: frame, type: 'image/png' },
+    );
+    const jobState = async (id) => (await ask(`/v1/jobs/${id}`)).json;
+    const settled = (id, what) => poll(() => jobState(id), (j) => ['done', 'failed', 'cancelled'].includes(j?.state) || /failed/i.test(j?.message ?? ''), 90_000, what);
+    const premiereBar = () => js(`(() => ({
+      shown: !document.getElementById('premiere').hidden,
+      label: document.getElementById('premiere-label').textContent,
+      status: document.getElementById('premiere-status').textContent,
+      send: !document.getElementById('premiere-image').hidden,
+      close: document.getElementById('premiere-cancel').textContent,
+    }))()`);
+    const pixelsOf = (png) => {
+      const image = nativeImage.createFromBuffer(png);
+      return { ...image.getSize(), data: image.toBitmap() };
+    };
+
+    // A 1280 × 720 frame: a comment at 1.5× drawn at (180, 260) on the dark chat's background, and a box drawn
+    // around it with some room to spare.
+    const shown = comment('@harbor_lights', 'that drop was unreal, again again again');
+    const shot = await captureComment(shown, { scale: 1.5 });
+    const at = { x: 180, y: 260 };
+    const frame = videoFrame(1280, 720, [15, 15, 15], shot.png, at);
+    const box = { x: at.x - 14, y: at.y - 9, width: shot.width + 40, height: shot.height + 22 };
+    const before = { ...await fields(), avatar: await js("document.getElementById('avatar-thumb').src"), avatarMode: await js("document.querySelector('input[name=\"avatarMode\"]:checked').value") };
+    // Sent at the export bar's Scale, as Save PNG renders: here 1.5×, the size the comment was drawn at in this
+    // frame, so its pixels can be compared.
+    const scaleBefore = await js("document.getElementById('scale').value");
+    const setScale = (value) => js(`(() => { const s = document.getElementById('scale'); s.value = '${value}'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    await setScale('1.5');
+    const job = await sendFrame(frame, box);
+    check(job.status === 201 && job.json?.state === 'reading', `the frame starts a job (${job.status} ${job.json?.state})`);
+    const review = await poll(() => jobState(job.json.id), (j) => j?.state !== 'reading', 90_000, 'the comment to be read');
+    check(review.state === 'review', `the editor reads the comment and waits for the user: "${review.message}"`);
+    const bar = await premiereBar();
+    check(bar.shown && bar.label === 'Sequence 01 at 00:00:05:00' && bar.send && bar.close === 'Cancel', `the Premiere Pro bar shows the job: ${JSON.stringify(bar)}`);
+    check(await js("document.getElementById('premiere-scale').textContent") === 'At 1.5× (Scale, below)', 'and the Scale it renders at');
+    check(same(await fields(), shown), `the name and message are filled in (${JSON.stringify(await fields())})`);
+    check(await js("document.querySelector('input[name=\"theme\"]:checked').value") === 'dark'
+      && await js("document.querySelector('input[name=\"avatarMode\"]:checked').value") === 'image', 'in the video\'s theme, with the avatar from the video');
+    await click('premiere-image');
+    const sent = await settled(job.json.id, 'the image');
+    check(sent.state === 'done' && sent.file?.kind === 'png' && sent.file.width === shot.width && sent.file.height === shot.height,
+      `"Send image" hands over a PNG rendered at the 1.5× Scale (${sent.file?.width} × ${sent.file?.height}, the 1.5× render ${shot.width} × ${shot.height}; ${sent.message})`);
+    check(!('placement' in sent), 'with no placement: the panel puts it on the timeline at its own size');
+    const file = await ask(`/v1/jobs/${job.json.id}/file`);
+    check(file.status === 200 && file.type === 'image/png' && pngSize(file.bytes)?.width === shot.width, `the panel fetches the PNG (${file.bytes.length} bytes)`);
+    if (file.status === 200) {
+      const [a, b] = [pixelsOf(file.bytes), pixelsOf(shot.png)];
+      let off = 0;
+      for (let i = 0; i < a.data.length; i += 4) {
+        if (Math.max(Math.abs(a.data[i] - b.data[i]), Math.abs(a.data[i + 1] - b.data[i + 1]), Math.abs(a.data[i + 2] - b.data[i + 2])) > 24) off++;
+      }
+      const share = off / (a.width * a.height);
+      check(share < 0.01, `and it looks like the original: ${(100 * share).toFixed(2)}% of its pixels differ visibly (the avatar is resampled)`);
+    }
+    await ask(`/v1/jobs/${job.json.id}/placed`, { method: 'POST', body: JSON.stringify({ message: 'Placed on V2 at 00:00:05:00.' }), type: 'application/json' });
+    const afterPlaced = await poll(premiereBar, (b) => b.status === 'Placed on V2 at 00:00:05:00.', 10_000, 'the placed message');
+    check(afterPlaced.close === 'Close' && !afterPlaced.send, 'the panel\'s "placed" shows in the bar, which now offers Close');
+    check(await undoOffered(), 'the reading can still be undone');
+    await click('read-undo');
+    const undone = { ...await fields(), avatar: await js("document.getElementById('avatar-thumb').src"), avatarMode: await js("document.querySelector('input[name=\"avatarMode\"]:checked').value") };
+    check(same(undone, before) && undone.avatar === before.avatar && undone.avatarMode === before.avatarMode,
+      `Undo puts back the name, message and avatar from before (${JSON.stringify({ ...undone, avatar: undone.avatar.slice(0, 40) })})`);
+    await click('premiere-cancel');
+    check(await js("document.getElementById('premiere').hidden"), 'Close hides the bar');
+
+    // A typing video at 3×: rendered at that size, whatever the video's.
+    const second = await sendFrame(frame, box, 'Sequence 01 at 00:00:09:12');
+    await poll(() => jobState(second.json.id), (j) => j?.state !== 'reading', 90_000, 'the second reading');
+    await setScale('3');
+    check(await js("document.getElementById('premiere-scale').textContent") === 'At 3× (Scale, below)', 'the bar follows the Scale');
+    await click('premiere-video');
+    const video = await settled(second.json.id, 'the typing video');
+    check(video.state === 'done' && video.file?.kind === 'mp4' && Math.abs(video.file.width - 2 * shot.width) <= 1 && video.file.duration > 0.5,
+      `"Send typing video" at 3× hands over an MP4 of ${video.file?.width} × ${video.file?.height} px, ${video.file?.duration?.toFixed(1)} s (${video.message})`);
+    const mp4 = await ask(`/v1/jobs/${second.json.id}/file`);
+    check(mp4.type === 'video/mp4' && mp4.bytes.toString('latin1', 4, 8) === 'ftyp', `the panel fetches the MP4 (${mp4.bytes.length} bytes)`);
+    await setScale('1.5');
+    await click('premiere-cancel');
+
+    // A member's comment with a timestamp: the time is read from the frame and the badge cut out of it, so the
+    // image sent back matches the original.
+    const narrow = String.fromCharCode(0x202f);
+    const member = comment('@pebble_parade', 'the bassline in this one is unreal', {
+      role: 'member', timestamp: `2:41${narrow}PM`, memberBadgeSrc: appUrl('test/visual/fixtures/member-badge-32.png'),
+    });
+    const memberShot = await captureComment(member, { scale: 1.5 });
+    const memberAt = { x: 260, y: 140 };
+    const memberBox = { x: memberAt.x - 10, y: memberAt.y - 8, width: memberShot.width + 30, height: memberShot.height + 16 };
+    const timeControls = "({ on: document.getElementById('timestamp-on').checked, text: document.getElementById('timestamp').value })";
+    const timeBefore = await js(timeControls);
+    const fourth = await sendFrame(videoFrame(1280, 720, [15, 15, 15], memberShot.png, memberAt), memberBox);
+    await poll(() => jobState(fourth.json.id), (j) => j?.state !== 'reading', 90_000, "the member's reading");
+    const look = await js(`(() => ({
+      role: document.querySelector('input[name="role"]:checked').value,
+      timestampOn: document.getElementById('timestamp-on').checked,
+      timestamp: document.getElementById('timestamp').value,
+      badge: !document.getElementById('badge-thumb').hidden,
+    }))()`);
+    check(look.role === 'member' && look.timestampOn && look.timestamp === '2:41 PM' && look.badge,
+      `the video's role, timestamp and member badge are taken: ${JSON.stringify(look)}`);
+    await click('premiere-image');
+    const memberSent = await settled(fourth.json.id, "the member's image");
+    const memberFile = memberSent.state === 'done' ? await ask(`/v1/jobs/${fourth.json.id}/file`) : null;
+    if (memberFile?.status === 200) {
+      const [a, b] = [pixelsOf(memberFile.bytes), pixelsOf(memberShot.png)];
+      let off = a.width === b.width && a.height === b.height ? 0 : Infinity;
+      for (let i = 0; Number.isFinite(off) && i < a.data.length; i += 4) {
+        if (Math.max(Math.abs(a.data[i] - b.data[i]), Math.abs(a.data[i + 1] - b.data[i + 1]), Math.abs(a.data[i + 2] - b.data[i + 2])) > 24) off++;
+      }
+      const share = off / (b.width * b.height);
+      check(share < 0.01, `and the image sent back matches it: ${(100 * share).toFixed(2)}% of pixels differ visibly`);
+    } else {
+      check(false, `the member's image was sent back (${memberSent.state}: ${memberSent.message})`);
+    }
+    await setScale(scaleBefore);
+    await click('read-undo');
+    const timeAfter = await js(timeControls);
+    check(timeAfter.on === timeBefore.on && timeAfter.text === timeBefore.text, `Undo puts the timestamp back as it was (${JSON.stringify(timeAfter)})`);
+    await click('premiere-cancel');
+
+    // The panel gives a job up; a frame with no comment in it fails with the reason.
+    const third = await sendFrame(frame, box);
+    await poll(() => jobState(third.json.id), (j) => j?.state !== 'reading', 90_000, 'the third reading');
+    await ask(`/v1/jobs/${third.json.id}/cancel`, { method: 'POST' });
+    const cancelled = await poll(premiereBar, (b) => b.close === 'Close', 10_000, 'the cancel to reach the editor');
+    check(cancelled.status === 'Premiere Pro cancelled this comment.' && !cancelled.send, `a cancel from the panel shows in the bar: "${cancelled.status}"`);
+    const empty = await sendFrame(videoFrame(640, 360, [15, 15, 15]), { x: 20, y: 20, width: 300, height: 60 });
+    const failedJob = await settled(empty.json.id, 'the empty frame');
+    const failedBar = await premiereBar();
+    check(failedJob.state === 'failed' && /text|comment/i.test(failedJob.message) && failedBar.close === 'Close' && /Draw the box again/.test(failedBar.status),
+      `a box with no comment in it fails: "${failedJob.message}" / "${failedBar.status}"`);
+    await click('premiere-cancel');
+  }
   wc.debugger.detach();
 
   // (app:// is served from file:// reads, which pass through here too.)

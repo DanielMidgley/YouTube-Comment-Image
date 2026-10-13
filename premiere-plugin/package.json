@@ -1,0 +1,4 @@
+{
+  "//": "For Node (the unit tests) only: the plugin is CommonJS, which UXP loads with require(). UXP reads manifest.json, not this.",
+  "type": "commonjs"
+}

@@ -28,14 +28,17 @@ const JPEG_INK = 0.28; // of the ink's strength: what counts as ink in a JPEG
  * Reads the comment in `image` ({ width, height, data } RGBA). `recognize(grey, { mode })` reads one line of
  * text from a { width, height, data } image with one byte per pixel (0 ink, 255 paper) and resolves to
  * { text, confidence (0-100), words } (see src/screenshot/ocr.js). Resolves to
- *   { name, message, doubtful, theme, role, verified, scale, confidence, warnings }
+ *   { name, message, doubtful, theme, role, verified, timestamp, scale, confidence, warnings, geometry }
  * where doubtful lists the words whose width on the screenshot no reading explained (worth checking),
- * confidence is the lowest OCR confidence (0-100) and warnings are sentences for the user (emoji that could
- * not be named, other comments in the image). Rejects with a readable Error when the image does not look
- * like a chat comment.
+ * timestamp is the comment's time as written, when asked for ({ timestamp: true }: '2:41 PM'; '' when it has
+ * one the OCR couldn't make out, null when it has none; undefined when not asked for), confidence is the lowest OCR confidence (0-100), warnings are sentences for the user
+ * (emoji that could not be named, other comments in the image) and geometry says where the comment read lies
+ * in the image: { box, avatar, name, badges }, boxes { x, y, width, height } in image pixels (the avatar's ink
+ * and the name's text, each null when the image doesn't show it; badges the ones after the name). Rejects with
+ * a readable Error when the image does not look like a chat comment.
  */
-export async function readComment(image, { recognize, signal } = {}) {
-  const first = await readLayout(image, analyzeScreenshot(image), { recognize, signal });
+export async function readComment(image, { recognize, signal, timestamp = false } = {}) {
+  const first = await readLayout(image, analyzeScreenshot(image), { recognize, signal, timestamp });
   // The scale comes from the layout's measures, which browser zoom (110%, 90%...) or a resized screenshot
   // can throw off by a few percent, enough to make right words look the wrong width. The words read say what it
   // is: when their widths agree on another scale, read again at that one, and keep the reading that leaves
@@ -44,7 +47,7 @@ export async function readComment(image, { recognize, signal } = {}) {
   if (!(measured && Math.abs(measured / first.scale - 1) > SCALE_DOUBT)) return finish(first);
   let second;
   try {
-    second = await readLayout(image, analyzeScreenshot(image, { scale: measured }), { recognize, signal });
+    second = await readLayout(image, analyzeScreenshot(image, { scale: measured }), { recognize, signal, timestamp });
   } catch (error) {
     if (signal?.aborted) throw error;
     return finish(first);
@@ -59,7 +62,7 @@ export async function readComment(image, { recognize, signal } = {}) {
 const finish = ({ measuredScale, ...result }) => ({ ...result, scale: Math.round(result.scale * 100) / 100 });
 
 /** Reads the target comment of `layout` (see readComment); also gives the scale the words' widths show. */
-async function readLayout(image, layout, { recognize, signal }) {
+async function readLayout(image, layout, { recognize, signal, timestamp: wanted }) {
   const comment = layout.comments[layout.target];
   const { scale } = layout;
   const warnings = [];
@@ -122,6 +125,18 @@ async function readLayout(image, layout, { recognize, signal }) {
     ? cleanName((await read(comment.name, cropBox(image, comment.name.box, scale, neighbours(comment.name.box, [...header, firstItem])), 'name')).text)
     : '';
 
+  // (The time in its own small type: no widths to check it by, so it is kept only if it reads as a time.)
+  let timestamp = wanted ? null : undefined;
+  if (wanted && comment.timestamp) {
+    timestamp = '';
+    try {
+      const crop = cropBox(image, comment.timestamp.box, scale, neighbours(comment.timestamp.box, [...header, firstItem]));
+      timestamp = timeText((await recognize(ocrImage(image, comment.timestamp, crop, scale), { mode: 'line' })).text) ?? '';
+    } catch (error) {
+      if (signal?.aborted) throw error;
+    }
+  }
+
   const lines = [];
   for (const line of comment.lines) {
     const pieces = [];
@@ -152,9 +167,11 @@ async function readLayout(image, layout, { recognize, signal }) {
     theme: layout.theme,
     role: comment.style.role,
     verified: comment.style.verified,
+    timestamp,
     scale,
     confidence: confidences.length ? Math.min(...confidences) : 0,
     warnings,
+    geometry: { box: comment.box, avatar: comment.avatar ?? null, name: comment.name?.box ?? null, badges: [...comment.badges] },
     // Trusted from enough words only (four or more), as their median, and only if most agree with it.
     measuredScale: trusted(ratios),
   };
@@ -476,6 +493,18 @@ function spaced(a, b, scale) {
 // ---- OCR images ------------------------------------------------------------------------------------------
 
 /** Boxes in `others` that share rows with `b`: what a crop around `b` must not reach into. */
+/**
+ * A chat timestamp as YouTube writes it, from what the OCR saw: a clock time ('2:41 PM') or a time into the
+ * stream ('12:05', '1:23:45', '-0:42' before it began). Null if it isn't one.
+ */
+function timeText(text) {
+  const t = String(text).replace(/\s+/g, ' ').trim().replace(/[Oo]/g, '0').replace(/[lI|]/g, '1');
+  const clock = /^(\d{1,2}):([0-5]\d) ?([AP])\.? ?M\.?$/i.exec(t);
+  if (clock && +clock[1] >= 1 && +clock[1] <= 12) return `${+clock[1]}:${clock[2]} ${clock[3].toUpperCase()}M`;
+  if (/^-?(\d{1,2}:)?[0-5]?\d:[0-5]\d$/.test(t)) return t;
+  return null;
+}
+
 function neighbours(b, others) {
   return others.filter((o) => o && o !== b && o.y < b.y + b.height && o.y + o.height > b.y);
 }

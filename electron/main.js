@@ -1,10 +1,12 @@
-// Main process: app lifecycle, the editor window, the menu, the security policy for every web contents, and
-// the IPC that turns the editor's RenderProps into a saved or copied PNG (via capture.js).
+// Main process: app lifecycle, the editor window, the menu, the security policy for every web contents, the
+// IPC that turns the editor's RenderProps into a saved or copied PNG (via capture.js), and the link to the
+// Premiere Pro panel (premiere-bridge.js).
 import { app, BrowserWindow, Menu, clipboard, dialog, ipcMain, nativeImage, screen, session } from 'electron';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { appUrl, handleAppScheme, registerAppScheme } from './protocol.js';
 import { MAX_SCALE, MIN_SCALE, captureComment, disposeCapture } from './capture.js';
+import { BRIDGE_PORTS, startPremiereBridge } from './premiere-bridge.js';
 import { LIMITS as TEXT_LIMITS, capText } from '../src/comment/limits.js';
 
 registerAppScheme();
@@ -13,8 +15,10 @@ const EDITOR_URL = appUrl('src/editor/index.html');
 const EDITOR_PREFIX = appUrl('src/editor/');
 const APP_PREFIX = appUrl('');
 const BACKGROUND = '#15171b'; // --app-bg in src/editor/editor.css, so there is no flash before the page paints
-// Set by test/smoke/app.js: run the real app with the editor window kept hidden.
+// Set by test/smoke/app.js: run the real app with the editor window kept hidden, and (YT_COMMENT_BRIDGE_PORT)
+// the Premiere Pro link on a port of its own, so a copy of the app the user has open doesn't answer instead.
 const HIDDEN = process.env.YT_COMMENT_HIDDEN === '1';
+const BRIDGE_PORT = /^\d+$/.test(process.env.YT_COMMENT_BRIDGE_PORT ?? '') ? Number(process.env.YT_COMMENT_BRIDGE_PORT) : null;
 
 // Text limits are shared with the editor, so its preview always shows exactly what gets exported.
 const LIMITS = { ...TEXT_LIMITS, url: 2048, dataUrl: 5 * 1024 * 1024 };
@@ -33,6 +37,8 @@ let editorWindow = null;
 let lastSaveDir = null;
 let lastOpenDir = null;
 let lastScale = null;
+let premiere = null; // the Premiere Pro link, or null while it isn't running (see startPremiere)
+let premiereJobId = null; // the job the editor has: given up if the editor reloads or crashes
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -60,6 +66,59 @@ function start() {
   Menu.setApplicationMenu(buildMenu());
   createEditorWindow();
   for (const event of ['display-metrics-changed', 'display-added', 'display-removed']) screen.on(event, emitScaleIfChanged);
+  startPremiere();
+}
+
+// ---- Premiere Pro -----------------------------------------------------------------------------------------
+
+/**
+ * Starts the link to the Premiere Pro panel. The app works the same without it: when every port is taken (or
+ * the server can't start), the panel says it can't find the app, and nothing else changes.
+ */
+async function startPremiere() {
+  try {
+    premiere = await startPremiereBridge({
+      ports: BRIDGE_PORT === null ? BRIDGE_PORTS : [BRIDGE_PORT],
+      version: app.getVersion(),
+      onJob: showPremiereJob,
+      onCancel: (id) => sendToEditor('premiere:update', { id, state: 'cancelled' }),
+      onPlaced: (id, message, ok) => sendToEditor('premiere:update', { id, state: 'placed', message, ok }),
+    });
+  } catch {
+    premiere = null;
+  }
+}
+
+/** A frame from the panel: the box drawn in it goes to the editor to be read, and the editor comes forward. */
+async function showPremiereJob({ id, frame, rect, label }) {
+  if (!editorWindow || editorWindow.isDestroyed()) throw new Error('The app has no window open.');
+  const image = nativeImage.createFromBuffer(frame);
+  const { width, height } = image.getSize();
+  if (!width || !height) throw new Error("The app couldn't open the frame.");
+  const crop = image.crop(rect).toPNG();
+  // The editor listens once its page has loaded (at start, or after View > Reload): a job sent sooner is lost.
+  const contents = editorWindow.webContents;
+  if (contents.isLoading()) {
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('The app is still starting: try again in a moment.')), 15_000);
+      contents.once('did-finish-load', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
+  }
+  if (!editorWindow || editorWindow.isDestroyed()) throw new Error('The app has no window open.');
+  premiereJobId = id;
+  contents.send('premiere:job', { id, label, image: crop });
+  if (HIDDEN) return;
+  if (editorWindow.isMinimized()) editorWindow.restore();
+  editorWindow.show();
+  editorWindow.moveTop();
+  editorWindow.focus();
+}
+
+function sendToEditor(channel, value) {
+  if (editorWindow && !editorWindow.isDestroyed()) editorWindow.webContents.send(channel, value);
 }
 
 function createEditorWindow() {
@@ -91,6 +150,15 @@ function createEditorWindow() {
     scaleTimer = setTimeout(emitScaleIfChanged, 150);
   };
   for (const event of ['moved', 'resized', 'move', 'resize']) win.on(event, scaleSoon);
+  // A reload (View > Reload) or a crash loses the editor's Premiere Pro job: the panel is told, not left waiting.
+  const dropJob = (reason) => {
+    if (premiere && premiereJobId) premiere.fail(premiereJobId, reason);
+    premiereJobId = null;
+  };
+  win.webContents.on('did-start-navigation', (details) => {
+    if (details.isMainFrame && !details.isSameDocument) dropJob('The app was reloaded: draw the box again.');
+  });
+  win.webContents.on('render-process-gone', () => dropJob("The app's window stopped: draw the box again."));
   win.on('closed', () => {
     editorWindow = null;
     disposeCapture();
@@ -275,6 +343,29 @@ function registerIpc() {
   ipcMain.handle('display:get-scale', (event) => {
     assertFromEditor(event);
     return currentDisplayScale();
+  });
+
+  // How a job from the Premiere Pro panel is going: 'review' (read, waiting for the user), 'rendering', or
+  // given up ('failed' with the reason, 'cancelled'). False when the panel has moved on.
+  ipcMain.handle('premiere:status', (event, id, state, message) => {
+    assertFromEditor(event);
+    if (!premiere || typeof id !== 'string') return false;
+    const note = typeof message === 'string' ? message : '';
+    if (state === 'failed') return premiere.fail(id, note);
+    if (state === 'cancelled') return premiere.cancel(id, note || 'Cancelled in the app.');
+    if (state !== 'review' && state !== 'rendering') throw new Error('Invalid Premiere Pro job state.');
+    return premiere.update(id, state, note);
+  });
+
+  // The finished PNG or typing video, for the panel to put on the timeline.
+  ipcMain.handle('premiere:deliver', (event, id, file) => {
+    assertFromEditor(event);
+    if (!premiere || typeof id !== 'string') return false;
+    if (!isPlainObject(file) || !(file.bytes instanceof Uint8Array) || file.bytes.length > MAX_VIDEO_BYTES) {
+      throw new Error('Invalid file for Premiere Pro.');
+    }
+    const name = typeof file.name === 'string' ? text(file.name, 'name', LIMITS.name) : undefined;
+    return premiere.deliver(id, { ...file, bytes: Buffer.from(file.bytes.buffer, file.bytes.byteOffset, file.bytes.byteLength), name });
   });
 }
 

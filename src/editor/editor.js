@@ -8,7 +8,7 @@ import {
 import { LIMITS, capText } from '../comment/limits.js';
 import { normalizeMessage } from '../comment/render.js';
 import { TYPING, shownAt, splitGraphemes, typingFrames } from '../comment/typing.js';
-import { describeReading, readScreenshot } from './screenshot.js';
+import { avatarOf, badgeOf, describeReading, readScreenshot } from './screenshot.js';
 
 const STORAGE_KEY = 'ytComment.editor.v1';
 const MESSAGE_LIMIT = 200; // YouTube's chat input counter; shown, not enforced
@@ -426,6 +426,7 @@ function syncUi() {
   $('cps-value').textContent = `${state.cps} characters per second`;
   $('video-length').textContent = `${(typingFrames(typedCharacters().length, typingSettings()).length / state.fps).toFixed(1)} s video`;
   updateExportInfo();
+  syncPremiereBar(); // (it shows the Scale it renders at)
 }
 
 function showThumb(img, removeButton, src) {
@@ -442,6 +443,11 @@ function changed({ render = true } = {}) {
   if (render) scheduleRender();
 }
 
+/** A hand edit of something the last reading set: Undo would now throw it away too, so Undo goes. */
+function editedAfterReading(key) {
+  if (lastReading && key in lastReading.before) forgetUndo();
+}
+
 function onFormEvent(event) {
   const target = event.target;
   const final = event.type === 'change';
@@ -456,16 +462,18 @@ function onFormEvent(event) {
     case 'avatarMode':
       state.avatarMode = target.value;
       avatarUpload++; // an upload still being read must not switch the mode back
+      editedAfterReading('avatarMode');
       break;
     case 'avatarColor': state.avatarColor = target.value; break;
-    case 'role': state.role = target.value; break;
+    case 'role': state.role = target.value; editedAfterReading('role'); break;
     case 'moderatorBadge': state.moderatorBadge = target.value; break;
-    case 'verified': state.verified = target.checked; break;
-    case 'theme': state.theme = target.value; break;
-    case 'timestampOn': state.timestampOn = target.checked; break;
+    case 'verified': state.verified = target.checked; editedAfterReading('verified'); break;
+    case 'theme': state.theme = target.value; editedAfterReading('theme'); break;
+    case 'timestampOn': state.timestampOn = target.checked; editedAfterReading('timestampOn'); break;
     case 'timestamp':
       state.timestamp = target.value;
       state.timestampAuto = false;
+      editedAfterReading('timestamp');
       break;
     case 'rowWidth':
     case 'margin': {
@@ -642,46 +650,100 @@ async function chooseScreenshot() {
   if (!file.canceled) readScreenshotFile(new Blob([file.bytes]));
 }
 
-/** Fills in the name and message from the comment in a screenshot (a Blob or File of an image). */
-async function readScreenshotFile(blob) {
+/**
+ * Fills in the name and message from the comment in a screenshot (a Blob or File of an image); for a frame from
+ * Premiere Pro (`premiere`), its look too (see lookOfVideo), so the comment matches the video. Resolves to the
+ * reading (readComment()'s result), or null when it failed (outcome.error says why), a newer read replaced it
+ * (outcome.replaced) or `signal` stopped it.
+ */
+async function readScreenshotFile(blob, { premiere = false, signal = null, outcome = {} } = {}) {
   readJob?.abort();
   const job = new AbortController();
   readJob = job;
+  signal?.addEventListener('abort', () => job.abort(signal.reason), { once: true });
   setReadStatus('', 'Reading the screenshot…');
   try {
     const result = await readScreenshot(blob, {
       signal: job.signal,
+      timestamp: premiere, // (only a frame from Premiere Pro shows it as the original does)
       onProgress: (text) => { if (!job.signal.aborted) setReadStatus('', text); },
     });
-    if (job.signal.aborted) return;
+    if (job.signal.aborted) return null;
     const name = capText(result.name, LIMITS.name);
     const message = capText(result.message, LIMITS.message);
     if (!name && !message) throw new Error("Couldn't read any text in the comment.");
     const before = { name: state.name, message: state.message };
     if (name) state.name = name;
     if (message) state.message = message;
+    // (Only the fields the reading changes: another may be half typed, 1 on the way to 1000.)
     $('name').value = state.name;
     $('message').value = state.message;
+    if (premiere) lookOfVideo(result, before);
     // As the fields give the text back (a textarea's value turns \r\n into \n), for onFormEvent's comparison.
     lastReading = { before, filled: { name: $('name').value, message: $('message').value } };
     changed();
     setReadStatus('ok', describeReading({ name, message, doubtful: result.doubtful, warnings: result.warnings }));
+    return result;
   } catch (error) {
-    if (!job.signal.aborted) setReadStatus('error', cleanError(error)); // a cancelled read just stops
+    if (!job.signal.aborted) {
+      outcome.error = cleanError(error);
+      setReadStatus('error', outcome.error);
+    } else if (signal?.aborted) {
+      if (readJob === job) setReadStatus('', 'Stopped reading.');
+    } else {
+      outcome.replaced = true; // a newer read took over: this one just stops
+    }
+    return null;
   } finally {
     if (readJob === job) readJob = null;
   }
 }
 
+/**
+ * A frame from Premiere Pro is read for a copy of the comment in the video, so the reading sets how it looks
+ * as well (keeping in `before` what it replaces, for Undo): the theme, role and verified badge, and the
+ * timestamp, shown as the original shows it (or hidden, as it hides it). The avatar and a member's badge from
+ * the video follow once cropped (startPremiereJob).
+ */
+function lookOfVideo(result, before) {
+  Object.assign(before, {
+    theme: state.theme, role: state.role, verified: state.verified, timestampOn: state.timestampOn, timestamp: state.timestamp,
+    timestampAuto: state.timestampAuto, avatarMode: state.avatarMode, avatarImage: state.avatarImage, badgeImage: state.badgeImage,
+  });
+  if (isValid('theme', result.theme)) state.theme = result.theme;
+  if (isValid('role', result.role)) state.role = result.role;
+  state.verified = result.verified === true;
+  state.timestampOn = result.timestamp != null;
+  if (result.timestamp) {
+    state.timestamp = capText(result.timestamp, LIMITS.timestamp);
+    state.timestampAuto = false;
+  }
+  showLook();
+}
+
+/** The controls for what lookOfVideo (and its Undo) set. */
+function showLook() {
+  setRadio('theme', state.theme);
+  setRadio('role', state.role);
+  $('verified').checked = state.verified;
+  setRadio('avatarMode', state.avatarMode);
+  $('timestamp-on').checked = state.timestampOn;
+  $('timestamp').value = state.timestamp;
+}
+
 function undoReading() {
   if (!lastReading) return;
   const onButton = document.activeElement === $('read-undo');
-  Object.assign(state, lastReading.before);
+  const { before } = lastReading;
+  Object.assign(state, before);
+  if ('avatarMode' in before) avatarUpload++; // an avatar or a badge still being read must not land on top
+  if ('badgeImage' in before) badgeUpload++;
   $('name').value = state.name;
   $('message').value = state.message;
+  if ('theme' in before) showLook();
   forgetUndo();
   changed();
-  setReadStatus('', 'Put back the name and message you had.');
+  setReadStatus('', 'theme' in before ? 'Put back the comment you had.' : 'Put back the name and message you had.');
   if (onButton) $('read-screenshot').focus(); // the Undo button is gone now
 }
 
@@ -762,6 +824,7 @@ async function runExport(kind) {
 function setBusy(on) {
   busy = on;
   for (const id of ['save', 'copy']) $(id).setAttribute('aria-disabled', String(on));
+  syncPremiereBar();
 }
 
 // ---- Typing video ---------------------------------------------------------------------------------------
@@ -832,25 +895,7 @@ async function exportVideo() {
   try {
     const scale = exportScale();
     const props = await buildProps(scale);
-    const characters = splitGraphemes(props.message);
-    const settings = typingSettings();
-    const frames = typingFrames(characters.length, settings);
-    const counts = [...new Set(frames)];
-    const states = new Map();
-    for (const [i, count] of counts.entries()) {
-      job.signal.throwIfAborted();
-      setStatus('', `Capturing frame ${i + 1} of ${counts.length}…`);
-      states.set(count, await api.capture({ ...props, message: characters.slice(0, count).join('') }, { scale }));
-    }
-    job.signal.throwIfAborted();
-    setStatus('', 'Encoding the video…');
-    const { encodeTypingVideo } = await import('./video.js');
-    const video = await encodeTypingVideo({
-      states, frames, fps: settings.fps, signal: job.signal,
-      onProgress: (done, total) => {
-        if (done % 30 === 0 || done === total) setStatus('', `Encoding frame ${done} of ${total}…`);
-      },
-    });
+    const video = await renderTypingVideo(props, scale, job.signal, (text) => setStatus('', text));
     const result = await api.saveVideo(video.bytes, { name: props.name });
     if (result.canceled) setStatus('', 'Save cancelled.');
     else setStatus('ok', `Saved ${video.width} × ${video.height} px, ${video.duration.toFixed(1)} s video → ${result.filePath}`);
@@ -862,6 +907,211 @@ async function exportVideo() {
     setBusy(false);
     $('video').textContent = 'Save video…';
   }
+}
+
+/**
+ * The typing animation of `props` as an MP4 at `scale`: every character count the video shows is captured
+ * exactly like Save PNG, then the frames are encoded here. `report(text)` follows the progress. Resolves to
+ * encodeTypingVideo()'s result plus `finished`, the capture of the whole comment (its last frame).
+ */
+async function renderTypingVideo(props, scale, signal, report) {
+  const characters = splitGraphemes(props.message);
+  const settings = typingSettings();
+  const frames = typingFrames(characters.length, settings);
+  const counts = [...new Set(frames)];
+  const states = new Map();
+  for (const [i, count] of counts.entries()) {
+    signal.throwIfAborted();
+    report(`Capturing frame ${i + 1} of ${counts.length}…`);
+    states.set(count, await api.capture({ ...props, message: characters.slice(0, count).join('') }, { scale }));
+  }
+  signal.throwIfAborted();
+  report('Encoding the video…');
+  const { encodeTypingVideo } = await import('./video.js');
+  const video = await encodeTypingVideo({
+    states, frames, fps: settings.fps, signal,
+    onProgress: (done, total) => {
+      if (done % 30 === 0 || done === total) report(`Encoding frame ${done} of ${total}…`);
+    },
+  });
+  return { ...video, finished: states.get(frames.at(-1)) };
+}
+
+// ---- Premiere Pro ---------------------------------------------------------------------------------------
+
+// A comment from the Premiere Pro panel (premiere-plugin/): the box drawn around one in a frame of the video,
+// read here, checked by the user and sent back as a PNG or a typing video at the export's Scale, which the
+// panel puts on the timeline at its own size. One at a time (a newer frame replaces it); null when there is none.
+//   { id, label, screenshot (the box's PNG, a Blob), reading (readComment()'s result, once read), read (an
+//     AbortController that stops the reading), videoAvatar (the frame's avatar, as prepareAvatar() makes it, or
+//     null), avatarBefore (the avatar it replaced), sending (an AbortController while the file is made), sent,
+//     closed (the panel has finished with it, or the reading failed) }
+let premiereJob = null;
+
+function setPremiereStatus(kind, text) {
+  const status = $('premiere-status');
+  status.className = `status${kind ? ` ${kind}` : ''}`;
+  status.textContent = text;
+}
+
+/** The bar follows the job: Send once the comment is read, until it has been sent; Close once it's over. */
+function syncPremiereBar() {
+  const job = premiereJob;
+  $('premiere').hidden = !job;
+  if (!job) return;
+  const ready = Boolean(job.reading) && !job.sending && !job.sent && !job.closed;
+  for (const id of ['premiere-image', 'premiere-video']) {
+    $(id).hidden = !ready && !job.sending;
+    $(id).setAttribute('aria-disabled', String(!ready || busy));
+  }
+  $('premiere-avatar').disabled = !ready || !job.videoAvatar;
+  $('premiere-scale').textContent = `At ${formatScale(exportScale())}× (Scale, below)`;
+  $('premiere-cancel').textContent = job.sent || job.closed ? 'Close' : 'Cancel';
+}
+
+async function startPremiereJob({ id, label, image }) {
+  if (premiereJob) {
+    premiereJob.read.abort(); // (the panel has given that one up already)
+    premiereJob.sending?.abort();
+  }
+  const job = {
+    id, label: String(label ?? ''), screenshot: new Blob([image], { type: 'image/png' }), reading: null, read: new AbortController(),
+    videoAvatar: null, avatarBefore: null, sending: null, sent: false, closed: false,
+  };
+  premiereJob = job;
+  $('premiere-label').textContent = job.label;
+  setPremiereStatus('', 'Reading the comment…');
+  syncPremiereBar();
+  const outcome = {};
+  const reading = await readScreenshotFile(job.screenshot, { premiere: true, signal: job.read.signal, outcome });
+  if (premiereJob !== job || job.closed) return;
+  if (!reading) {
+    job.closed = true;
+    if (outcome.replaced) {
+      setPremiereStatus('', 'Stopped: another screenshot was read in the app. Draw the box again in Premiere Pro.');
+      api.premiereStatus(id, 'cancelled', 'Another screenshot was read in the app.').catch(() => {});
+    } else {
+      const reason = outcome.error || "Couldn't read a comment there.";
+      setPremiereStatus('error', `${reason} Draw the box again in Premiere Pro.`);
+      api.premiereStatus(id, 'failed', reason).catch(() => {});
+    }
+    syncPremiereBar();
+    return;
+  }
+  job.reading = reading;
+  job.avatarBefore = { avatarMode: state.avatarMode, avatarImage: state.avatarImage };
+  const [avatar, badge] = await Promise.all([avatarOf(job.screenshot, reading), badgeOf(job.screenshot, reading)].map((p) => p.catch(() => null)));
+  job.videoAvatar = avatar ? await prepareAvatar(avatar).catch(() => null) : null;
+  const videoBadge = badge ? await prepareBadge(badge).catch(() => null) : null;
+  if (premiereJob !== job || job.closed) return;
+  // (A member's badge is the channel's own picture: the one in the video is the only right one.)
+  if (videoBadge) {
+    state.badgeImage = videoBadge;
+    badgeUpload++;
+    changed();
+  }
+  if (job.videoAvatar && $('premiere-avatar').checked) useVideoAvatar(job, true);
+  const time = reading.timestamp === '' ? " Its timestamp couldn't be read: set it under Timestamp." : '';
+  setPremiereStatus('', `Check the name and message, then send the comment to Premiere Pro.${time}`);
+  syncPremiereBar();
+  api.premiereStatus(id, 'review', 'Check the comment in the YouTube Chat Comment app, then send it.').catch(() => {});
+}
+
+/** The avatar read from the frame (on), or the one it replaced (off). */
+function useVideoAvatar(job, on) {
+  const before = job.avatarBefore;
+  if (on && job.videoAvatar) {
+    state.avatarImage = job.videoAvatar;
+    state.avatarMode = 'image';
+  } else if (!on && before) {
+    state.avatarImage = before.avatarImage;
+    state.avatarMode = before.avatarMode;
+  } else {
+    return;
+  }
+  avatarUpload++; // an upload still being read must not replace it
+  setRadio('avatarMode', state.avatarMode);
+  changed();
+}
+
+/** Renders the comment as `kind` ('png' or 'mp4') for the job and hands it to the panel. */
+async function sendToPremiere(kind) {
+  const job = premiereJob;
+  if (!job?.reading || job.sending || job.sent || job.closed || busy || videoJob) return;
+  if (playback) stopTyping();
+  const sending = new AbortController();
+  job.sending = sending;
+  setBusy(true);
+  const what = kind === 'png' ? 'image' : 'typing video';
+  const report = (text) => { if (!sending.signal.aborted) setPremiereStatus('', text); };
+  try {
+    // At the export's own Scale, as Save PNG renders (the video's resolution has nothing to do with it); the
+    // panel puts it on the timeline at that size.
+    const scale = exportScale();
+    report(`Rendering the ${what}…`);
+    api.premiereStatus(job.id, 'rendering', `Rendering the ${what}…`).catch(() => {});
+    const props = await buildProps(scale);
+    let file;
+    if (kind === 'png') {
+      const capture = await api.capture(props, { scale });
+      file = { kind, bytes: capture.png, width: capture.width, height: capture.height };
+    } else {
+      const video = await renderTypingVideo(props, scale, sending.signal, report);
+      file = { kind, bytes: video.bytes, width: video.width, height: video.height, duration: video.duration };
+    }
+    sending.signal.throwIfAborted();
+    file.name = props.name;
+    if (!(await api.premiereDeliver(job.id, file))) throw new Error('Premiere Pro has moved on to another frame.');
+    job.sent = true;
+    setPremiereStatus('ok', `Sent the ${what} (${file.width} × ${file.height} px): Premiere Pro is putting it on the timeline.`);
+  } catch (error) {
+    if (sending.signal.aborted) {
+      if (!job.closed) setPremiereStatus('', 'Cancelled.'); // (Premiere Pro's own cancel has said so already)
+    } else {
+      setPremiereStatus('error', cleanError(error));
+      api.premiereStatus(job.id, 'review', `Sending failed: ${cleanError(error)}`).catch(() => {});
+    }
+  } finally {
+    job.sending = null;
+    setBusy(false);
+  }
+}
+
+/** Cancel (or, once it is over, Close): tells the panel, and hides the bar. */
+function closePremiereJob() {
+  const job = premiereJob;
+  if (!job) return;
+  job.read.abort();
+  job.sending?.abort();
+  if (!job.sent && !job.closed) api.premiereStatus(job.id, 'cancelled', 'Cancelled in the app.').catch(() => {});
+  premiereJob = null;
+  syncPremiereBar();
+}
+
+function wirePremiere() {
+  if (!api?.onPremiereJob) return;
+  api.onPremiereJob(startPremiereJob);
+  api.onPremiereUpdate(({ id, state: jobState, message, ok }) => {
+    const job = premiereJob;
+    if (!job || job.id !== id) return;
+    if (jobState === 'placed') {
+      job.closed = true;
+      if (ok === false) setPremiereStatus('error', message || "Premiere Pro couldn't place it.");
+      else setPremiereStatus('ok', message || 'Placed on the timeline.');
+    } else if (jobState === 'cancelled' && !job.sent) {
+      job.read.abort();
+      job.sending?.abort();
+      job.closed = true;
+      setPremiereStatus('', 'Premiere Pro cancelled this comment.');
+    }
+    syncPremiereBar();
+  });
+  $('premiere-image').addEventListener('click', () => sendToPremiere('png'));
+  $('premiere-video').addEventListener('click', () => sendToPremiere('mp4'));
+  $('premiere-cancel').addEventListener('click', closePremiereJob);
+  $('premiere-avatar').addEventListener('change', (event) => {
+    if (premiereJob?.reading) useVideoAvatar(premiereJob, event.target.checked);
+  });
 }
 
 // ---- Start ----------------------------------------------------------------------------------------------
@@ -919,6 +1169,7 @@ function start() {
   wireDragAndDrop();
   wirePaste();
   wireUndoShortcut();
+  wirePremiere();
   $('read-screenshot').addEventListener('click', chooseScreenshot);
   $('read-undo').addEventListener('click', undoReading);
   wireFileInput('read-file', null, readScreenshotFile);
